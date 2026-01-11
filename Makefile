@@ -30,7 +30,7 @@ frontend-build:
 # Backend commands
 build-backend:
 	@echo "Building Go backend..."
-	cd backend && go build -o ../bin/server ./cmd/server
+	cd backend && CGO_ENABLED=0 GOOS=linux go build -o ../bin/server ./cmd/server
 	@echo "✓ Backend binary created at bin/server"
 
 # Build frontend and copy to bin folder
@@ -54,31 +54,39 @@ docker-build: build-all
 # Run Docker container
 docker-run:
 	@echo "Starting container $(IMAGE_NAME)..."
+	-docker rm -f go-todo 2>/dev/null
 	docker run -d \
 		--name go-todo \
 		-p 8080:8080 \
 		--network host \
 		$(IMAGE_NAME):latest
-	@echo "✓ Container started: go-todo-app"
+	@echo "✓ Container started: go-todo"
 	@echo "  Access at: http://localhost:8080"
 	@echo "  View logs: make docker-logs"
 
 # Stop and remove Docker container
 docker-stop:
 	@echo "Stopping container..."
-	-docker stop go-todo-app
-	-docker rm go-todo-app
+	-docker stop go-todo
+	-docker rm go-todo
 	@echo "✓ Container stopped and removed"
 
 # View Docker container logs
 docker-logs:
-	docker logs -f go-todo-app
+	docker logs -f go-todo
 
 # Clean Docker images
 docker-clean:
 	@echo "Removing Docker images..."
 	-docker rmi $(IMAGE_NAME):latest
 	@echo "✓ Docker images removed"
+
+# Complete release: build everything and create Docker image
+release: build-all docker-build
+	@echo "✓ Release complete!"
+	@echo "  - Binary: bin/server"
+	@echo "  - Frontend: bin/frontend/dist"
+	@echo "  - Docker: $(IMAGE_NAME):latest"
 
 # Clean build artifacts
 clean:
