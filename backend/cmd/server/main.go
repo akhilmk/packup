@@ -29,25 +29,28 @@ func main() {
 	todoHandler.RegisterRoutes(mux)
 
 	// Serve static frontend files
-	// try to resolve directory
-	// try to resolve directory
-	staticDir := "frontend/dist"
-	if _, err := os.Stat(staticDir); os.IsNotExist(err) {
-		// try relative to cmd/server if running from there (root/backend/cmd/server)
-		staticDir = "../../../frontend/dist"
-		if _, err := os.Stat(staticDir); os.IsNotExist(err) {
-			// Just in case we are in backend root
-			staticDir = "../frontend/dist"
-			if _, err := os.Stat(staticDir); os.IsNotExist(err) {
-				log.Printf("Warning: frontend/dist not found at %s or ../../../frontend/dist or ../frontend/dist", "frontend/dist")
-			}
+	// Try multiple paths for different deployment scenarios
+	staticPaths := []string{
+		"frontend/dist",          // Running from bin/ folder (production)
+		"../frontend/dist",       // Running from backend/ folder (development)
+		"../../frontend/dist",    // Running from backend/cmd/server (development)
+		"../../../frontend/dist", // Alternative development path
+	}
+
+	var staticDir string
+	for _, path := range staticPaths {
+		if _, err := os.Stat(path); err == nil {
+			staticDir = path
+			break
 		}
 	}
 
-	// We only serve if it exists, otherwise it might panic or 404.
-	if _, err := os.Stat(staticDir); err == nil {
+	if staticDir != "" {
 		fs := http.FileServer(http.Dir(staticDir))
 		mux.Handle("/", fs)
+		log.Printf("Serving static files from: %s", staticDir)
+	} else {
+		log.Printf("Warning: frontend/dist not found in any expected location")
 	}
 
 	addr := ":8080"

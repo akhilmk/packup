@@ -1,0 +1,39 @@
+# Git
+.git
+.gitignore
+
+# Development files
+.env*
+*.md
+!README.md
+
+# Frontend source (we only need the built dist)
+frontend/src
+frontend/node_modules
+frontend/package*.json
+frontend/tsconfig*.json
+frontend/vite.config.ts
+frontend/svelte.config.js
+frontend/tailwind.config.js
+frontend/public
+frontend/.vscode
+
+# Backend source (we only need the binary)
+backend
+
+# Build artifacts not in bin/
+*.log
+
+# Docker
+Dockerfile
+.dockerignore
+compose*.yml
+
+# Scripts
+scripts
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
