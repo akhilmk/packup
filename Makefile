@@ -1,11 +1,10 @@
 COMPOSE_FILE ?= compose.postgres-dev.yml
 DOCKER_COMPOSE ?= docker compose
-VERSION := $(shell cat version 2>/dev/null || echo "0.0.1")
 IMAGE_NAME := go-todo
-IMAGE_TAG := dev-$(VERSION)
 
-.PHONY: db-up db-down db-logs db-shell frontend-install frontend-build frontend-clean \
-        build-backend build-frontend build-all docker-build release clean version help
+.PHONY: db-up db-down db-logs db-shell frontend-install frontend-build \
+        build-backend build-frontend build-all docker-build docker-run docker-stop \
+        docker-logs docker-clean release clean help
 
 # Database commands
 db-up:
@@ -46,26 +45,47 @@ build-frontend: frontend-build
 build-all: build-backend build-frontend
 	@echo "✓ Build complete! Binary and frontend are in bin/"
 
-# Increment version
-version:
-	@chmod +x scripts/increment-version.sh
-	@NEW_VERSION=$$(bash scripts/increment-version.sh); \
-	echo "Version incremented to $$NEW_VERSION"
-
 # Build Docker image using pre-built binaries
 docker-build: build-all
-	@echo "Building Docker image $(IMAGE_NAME):$(IMAGE_TAG)..."
-	docker build -t $(IMAGE_NAME):$(IMAGE_TAG) .
-	docker tag $(IMAGE_NAME):$(IMAGE_TAG) $(IMAGE_NAME):latest
-	@echo "✓ Docker image built: $(IMAGE_NAME):$(IMAGE_TAG)"
-	@echo "✓ Tagged as: $(IMAGE_NAME):latest"
+	@echo "Building Docker image $(IMAGE_NAME):latest..."
+	docker build -t $(IMAGE_NAME):latest .
+	@echo "✓ Docker image built: $(IMAGE_NAME):latest"
 
-# Complete release: increment version, build everything, create Docker image
-release: version build-all docker-build
-	@echo "✓ Release $(VERSION) complete!"
+# Run Docker container
+docker-run:
+	@echo "Starting container $(IMAGE_NAME)..."
+	docker run -d \
+		--name go-todo-app \
+		-p 8080:8080 \
+		--network host \
+		$(IMAGE_NAME):latest
+	@echo "✓ Container started: go-todo-app"
+	@echo "  Access at: http://localhost:8080"
+	@echo "  View logs: make docker-logs"
+
+# Stop and remove Docker container
+docker-stop:
+	@echo "Stopping container..."
+	-docker stop go-todo-app
+	-docker rm go-todo-app
+	@echo "✓ Container stopped and removed"
+
+# View Docker container logs
+docker-logs:
+	docker logs -f go-todo-app
+
+# Clean Docker images
+docker-clean:
+	@echo "Removing Docker images..."
+	-docker rmi $(IMAGE_NAME):latest
+	@echo "✓ Docker images removed"
+
+# Complete release: build everything and create Docker image
+release: build-all docker-build
+	@echo "✓ Release complete!"
 	@echo "  - Binary: bin/server"
 	@echo "  - Frontend: bin/frontend/dist"
-	@echo "  - Docker: $(IMAGE_NAME):$(IMAGE_TAG)"
+	@echo "  - Docker: $(IMAGE_NAME):latest"
 
 # Clean build artifacts
 clean:
@@ -87,12 +107,12 @@ help:
 	@echo "  make build-frontend   - Build frontend and copy to bin/"
 	@echo "  make build-all        - Build backend + frontend"
 	@echo ""
-	@echo "  make version          - Increment version number"
-	@echo "  make docker-build     - Build Docker image (after build-all)"
-	@echo "  make release          - Full release: version + build + docker"
+	@echo "  make docker-build     - Build Docker image"
+	@echo "  make docker-run       - Run Docker container"
+	@echo "  make docker-stop      - Stop and remove container"
+	@echo "  make docker-logs      - View container logs"
+	@echo "  make docker-clean     - Remove Docker images"
+	@echo "  make release          - Full release: build + docker"
 	@echo ""
 	@echo "  make clean            - Remove build artifacts"
 	@echo "  make help             - Show this help"
-	@echo ""
-	@echo "Current version: $(VERSION)"
-
