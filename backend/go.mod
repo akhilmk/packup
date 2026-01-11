@@ -1,4 +1,4 @@
-module todo-app
+module github.com/akhilmk/focus-flow
 
 go 1.25.5
 

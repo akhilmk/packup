@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"os"
 
-	"todo-app/internal/auth"
-	"todo-app/internal/database"
-	"todo-app/internal/todo"
+	"github.com/akhilmk/focus-flow/internal/auth"
+	"github.com/akhilmk/focus-flow/internal/database"
+	"github.com/akhilmk/focus-flow/internal/todo"
 )
 
 func main() {
