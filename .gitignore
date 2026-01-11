@@ -1,0 +1,2 @@
+# Ignore the backend server binary
+bin/server

@@ -58,7 +58,8 @@ docker-run:
 	docker run -d \
 		--name go-todo \
 		-p 8080:8080 \
-		--network host \
+		--add-host=host.docker.internal:host-gateway \
+		-e DB_HOST=$${DB_HOST:-host.docker.internal} \
 		$(IMAGE_NAME):latest
 	@echo "✓ Container started: go-todo"
 	@echo "  Access at: http://localhost:8080"
