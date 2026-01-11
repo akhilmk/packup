@@ -1,10 +1,12 @@
 // REST API client for Todo backend
 const API_BASE_URL = "/api";
 
+export type TodoStatus = 'pending' | 'in-progress' | 'done';
+
 export interface Todo {
     id: string;
     text: string;
-    completed: boolean;
+    status: TodoStatus;
 }
 
 interface ListTodosResponse {
@@ -44,7 +46,7 @@ export const api = {
         return handleResponse<Todo>(response);
     },
 
-    async updateTodo(id: string, updates: { text?: string; completed?: boolean }): Promise<Todo> {
+    async updateTodo(id: string, updates: { text?: string; status?: TodoStatus }): Promise<Todo> {
         const response = await fetch(`${API_BASE_URL}/todos/${id}`, {
             method: "PUT",
             headers: {

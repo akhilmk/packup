@@ -32,12 +32,17 @@
     <div class="mt-6 flex justify-center space-x-4">
       <div class="px-4 py-1.5 bg-indigo-50 rounded-full border border-indigo-100/50">
         <span class="text-xs font-bold text-indigo-600 uppercase tracking-wider">
-          {todos.length} {todos.length === 1 ? 'Task' : 'Tasks'}
+          {todos.filter(t => t.status === 'pending').length} Pending
+        </span>
+      </div>
+      <div class="px-4 py-1.5 bg-amber-50 rounded-full border border-amber-100/50">
+        <span class="text-xs font-bold text-amber-600 uppercase tracking-wider">
+          {todos.filter(t => t.status === 'in-progress').length} In Progress
         </span>
       </div>
       <div class="px-4 py-1.5 bg-emerald-50 rounded-full border border-emerald-100/50">
         <span class="text-xs font-bold text-emerald-600 uppercase tracking-wider">
-          {todos.filter(t => t.completed).length} Done
+          {todos.filter(t => t.status === 'done').length} Done
         </span>
       </div>
     </div>

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { api, type Todo } from "../api";
+  import { api, type Todo, type TodoStatus } from "../api";
   import { createEventDispatcher } from "svelte";
   import { fade, slide } from "svelte/transition";
 
@@ -10,9 +10,14 @@
   let editText = todo.text;
   const LIMIT = 200;
 
-  async function toggleComplete() {
+  async function cycleStatus() {
+    let nextStatus: TodoStatus;
+    if (todo.status === 'pending') nextStatus = 'in-progress';
+    else if (todo.status === 'in-progress') nextStatus = 'done';
+    else nextStatus = 'pending';
+
     try {
-      await api.updateTodo(todo.id, { completed: !todo.completed });
+      await api.updateTodo(todo.id, { status: nextStatus });
       dispatch("update");
     } catch (e) {
       console.error(e);
@@ -49,16 +54,21 @@
   transition:slide={{ duration: 300 }}
   class="flex items-center gap-4 p-4 bg-white border-b border-gray-50 last:border-0 hover:bg-indigo-50/30 transition-all group overflow-hidden"
 >
-  <!-- Custom Checkbox -->
+  <!-- Status Cycle Button -->
   <button 
-    on:click={toggleComplete}
+    on:click={cycleStatus}
     class="relative flex items-center justify-center w-6 h-6 rounded-full border-2 transition-all duration-200 
-           {todo.completed ? 'bg-emerald-500 border-emerald-500' : 'bg-white border-slate-200 hover:border-indigo-400'}"
+           {todo.status === 'done' ? 'bg-emerald-500 border-emerald-500' : 
+            todo.status === 'in-progress' ? 'bg-amber-100 border-amber-400' : 
+            'bg-white border-slate-200 hover:border-indigo-400'}"
+    title="Click to cycle status: Pending -> In Progress -> Done"
   >
-    {#if todo.completed}
+    {#if todo.status === 'done'}
       <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
         <polyline points="20 6 9 17 4 12"></polyline>
       </svg>
+    {:else if todo.status === 'in-progress'}
+      <div class="w-2.5 h-2.5 bg-amber-500 rounded-full animate-pulse"></div>
     {/if}
   </button>
 
@@ -99,10 +109,23 @@
   {:else}
     <!-- svelte-ignore a11y-no-static-element-interactions -->
     <span
-      class="flex-1 text-slate-700 font-medium selection:bg-indigo-100 transition-all duration-300 {todo.completed ? 'line-through text-slate-300 opacity-60' : ''}"
+      class="flex-1 font-medium selection:bg-indigo-100 transition-all duration-300 
+             {todo.status === 'done' ? 'line-through text-slate-300 opacity-60' : 'text-slate-700'}
+             {todo.status === 'in-progress' ? 'text-indigo-600' : ''}"
       on:dblclick={() => (isEditing = true)}
     >
       {todo.text}
+      {#if todo.status === 'in-progress'}
+        <span class="inline-flex items-center ml-2 text-[10px] font-bold tracking-wider text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100 uppercase align-middle transform -translate-y-0.5 gap-1 shadow-sm">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 animate-spin" style="animation-duration: 3s;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 22h14"></path>
+            <path d="M5 2h14"></path>
+            <path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22"></path>
+            <path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"></path>
+          </svg>
+          In Progress
+        </span>
+      {/if}
     </span>
     
     <div class="opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center space-x-1">

@@ -68,11 +68,12 @@ func New(ctx context.Context) (*pgxpool.Pool, error) {
 }
 
 func ensureSchema(ctx context.Context, db *pgxpool.Pool) error {
+	// Simple schema creation for fresh install
 	_, err := db.Exec(ctx, `
 	CREATE TABLE IF NOT EXISTS todos (
 		id TEXT PRIMARY KEY,
 		text TEXT NOT NULL,
-		completed BOOLEAN NOT NULL DEFAULT false,
+		status VARCHAR(20) NOT NULL DEFAULT 'pending',
 		created TIMESTAMPTZ NOT NULL DEFAULT now()
 	);`)
 	return err

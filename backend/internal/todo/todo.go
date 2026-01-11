@@ -10,9 +10,10 @@ import (
 )
 
 type Todo struct {
-	ID        string `json:"id"`
-	Text      string `json:"text"`
-	Completed bool   `json:"completed"`
+	ID      string    `json:"id"`
+	Text    string    `json:"text"`
+	Status  string    `json:"status"`
+	Created time.Time `json:"created"`
 }
 
 type Handler struct {
@@ -32,7 +33,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 }
 
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
-	rows, err := h.db.Query(r.Context(), `SELECT id, text, completed FROM todos ORDER BY created DESC LIMIT 100`)
+	rows, err := h.db.Query(r.Context(), `SELECT id, text, status, created FROM todos ORDER BY created DESC LIMIT 100`)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -42,7 +43,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	var todos []Todo
 	for rows.Next() {
 		var t Todo
-		if err := rows.Scan(&t.ID, &t.Text, &t.Completed); err != nil {
+		if err := rows.Scan(&t.ID, &t.Text, &t.Status, &t.Created); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -77,7 +78,11 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	id := uuid.NewString()
-	_, err := h.db.Exec(r.Context(), `INSERT INTO todos(id, text, completed, created) VALUES($1,$2,$3,$4)`, id, req.Text, false, time.Now())
+	// Default status is 'pending'
+	status := "pending"
+	created := time.Now()
+
+	_, err := h.db.Exec(r.Context(), `INSERT INTO todos(id, text, status, created) VALUES($1,$2,$3,$4)`, id, req.Text, status, created)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -85,7 +90,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(Todo{ID: id, Text: req.Text, Completed: false})
+	json.NewEncoder(w).Encode(Todo{ID: id, Text: req.Text, Status: status, Created: created})
 }
 
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
@@ -96,8 +101,8 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		Text      string `json:"text"`
-		Completed bool   `json:"completed"`
+		Text   string `json:"text"`
+		Status string `json:"status"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid json", http.StatusBadRequest)
@@ -107,6 +112,17 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	if req.Text != "" && len(req.Text) > 200 {
 		http.Error(w, "text limit of 200 characters exceeded", http.StatusBadRequest)
 		return
+	}
+
+	// Validate status if provided
+	if req.Status != "" {
+		switch req.Status {
+		case "pending", "in-progress", "done":
+			// valid
+		default:
+			http.Error(w, "invalid status", http.StatusBadRequest)
+			return
+		}
 	}
 
 	// Check existence
@@ -121,14 +137,25 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = h.db.Exec(r.Context(), `UPDATE todos SET text = COALESCE(NULLIF($2,''), text), completed = $3 WHERE id=$1`, id, req.Text, req.Completed)
+	// Dynamic update: only update fields that are provided
+	// Note: We use COALESCE(NULLIF($2,''), text) for text to allow empty updates (if client sends empty string to mean "no change").
+	// But actually our client sends partial JSON.
+	// A better way for SQL updates with partial data is often detailed.
+	// Here simplified: If req.Status is empty, we keep old status.
+
+	_, err = h.db.Exec(r.Context(), `
+		UPDATE todos 
+		SET text = CASE WHEN $2 = '' THEN text ELSE $2 END, 
+		    status = CASE WHEN $3 = '' THEN status ELSE $3 END 
+		WHERE id=$1`, id, req.Text, req.Status)
+
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	var t Todo
-	if err := h.db.QueryRow(r.Context(), `SELECT id, text, completed FROM todos WHERE id=$1`, id).Scan(&t.ID, &t.Text, &t.Completed); err != nil {
+	if err := h.db.QueryRow(r.Context(), `SELECT id, text, status, created FROM todos WHERE id=$1`, id).Scan(&t.ID, &t.Text, &t.Status, &t.Created); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
