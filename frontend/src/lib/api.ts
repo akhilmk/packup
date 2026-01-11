@@ -7,6 +7,7 @@ export interface Todo {
     id: string;
     text: string;
     status: TodoStatus;
+    position?: number;
 }
 
 interface ListTodosResponse {
@@ -60,6 +61,17 @@ export const api = {
     async deleteTodo(id: string): Promise<void> {
         const response = await fetch(`${API_BASE_URL}/todos/${id}`, {
             method: "DELETE",
+        });
+        await handleResponse<{ success: boolean }>(response);
+    },
+
+    async reorderTodos(ids: string[]): Promise<void> {
+        const response = await fetch(`${API_BASE_URL}/todos/reorder`, {
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ ids }),
         });
         await handleResponse<{ success: boolean }>(response);
     },

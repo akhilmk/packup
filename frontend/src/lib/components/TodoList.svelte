@@ -3,6 +3,7 @@
   import { api, type Todo } from "../api";
   import TodoItem from "./TodoItem.svelte";
   import AddTodo from "./AddTodo.svelte";
+  import { flip } from "svelte/animate";
 
   let todos: Todo[] = [];
   let loading = true;
@@ -14,6 +15,38 @@
       console.error(e);
     } finally {
       loading = false;
+    }
+  }
+
+  let draggedItemIndex: number | null = null;
+
+  function handleDragStart(event: DragEvent, index: number) {
+    draggedItemIndex = index;
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.dropEffect = 'move';
+    }
+  }
+
+  function handleDragOver(event: DragEvent, index: number) {
+    event.preventDefault();
+    if (draggedItemIndex === null || draggedItemIndex === index) return;
+    
+    const newTodos = [...todos];
+    const [item] = newTodos.splice(draggedItemIndex, 1);
+    newTodos.splice(index, 0, item);
+    
+    todos = newTodos;
+    draggedItemIndex = index;
+  }
+
+  async function handleDragEnd() {
+    draggedItemIndex = null;
+    try {
+      const ids = todos.map(t => t.id);
+      await api.reorderTodos(ids);
+    } catch (e) {
+      console.error("Failed to save order", e);
     }
   }
 
@@ -67,8 +100,18 @@
     </div>
   {:else}
     <div class="glass-card rounded-3xl overflow-hidden border-border divide-y divide-gray-50">
-      {#each todos as todo (todo.id)}
-        <TodoItem {todo} on:update={fetchTodos} />
+      {#each todos as todo, index (todo.id)}
+        <div
+          role="listitem"
+          draggable="true"
+          animate:flip={{ duration: 300 }}
+          on:dragstart={(e) => handleDragStart(e, index)}
+          on:dragover={(e) => handleDragOver(e, index)}
+          on:dragend={handleDragEnd}
+          class="cursor-grab active:cursor-grabbing {draggedItemIndex === index ? 'opacity-50 bg-indigo-50/50' : ''}"
+        >
+          <TodoItem {todo} on:update={fetchTodos} />
+        </div>
       {/each}
     </div>
     

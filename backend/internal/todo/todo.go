@@ -10,10 +10,11 @@ import (
 )
 
 type Todo struct {
-	ID      string    `json:"id"`
-	Text    string    `json:"text"`
-	Status  string    `json:"status"`
-	Created time.Time `json:"created"`
+	ID       string    `json:"id"`
+	Text     string    `json:"text"`
+	Status   string    `json:"status"`
+	Created  time.Time `json:"created"`
+	Position float64   `json:"position"`
 }
 
 type Handler struct {
@@ -29,11 +30,12 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/todos", h.List)
 	mux.HandleFunc("POST /api/todos", h.Create)
 	mux.HandleFunc("PUT /api/todos/{id}", h.Update)
+	mux.HandleFunc("PUT /api/todos/reorder", h.Reorder)
 	mux.HandleFunc("DELETE /api/todos/{id}", h.Delete)
 }
 
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
-	rows, err := h.db.Query(r.Context(), `SELECT id, text, status, created FROM todos ORDER BY created DESC LIMIT 100`)
+	rows, err := h.db.Query(r.Context(), `SELECT id, text, status, created, position FROM todos ORDER BY position ASC, created DESC LIMIT 100`)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -43,7 +45,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	var todos []Todo
 	for rows.Next() {
 		var t Todo
-		if err := rows.Scan(&t.ID, &t.Text, &t.Status, &t.Created); err != nil {
+		if err := rows.Scan(&t.ID, &t.Text, &t.Status, &t.Created, &t.Position); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -82,7 +84,12 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	status := "pending"
 	created := time.Now()
 
-	_, err := h.db.Exec(r.Context(), `INSERT INTO todos(id, text, status, created) VALUES($1,$2,$3,$4)`, id, req.Text, status, created)
+	// Get min position to put at top
+	var minPos float64
+	_ = h.db.QueryRow(r.Context(), `SELECT COALESCE(MIN(position), 0) FROM todos`).Scan(&minPos)
+	position := minPos - 1024.0
+
+	_, err := h.db.Exec(r.Context(), `INSERT INTO todos(id, text, status, created, position) VALUES($1,$2,$3,$4,$5)`, id, req.Text, status, created, position)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -90,7 +97,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(Todo{ID: id, Text: req.Text, Status: status, Created: created})
+	json.NewEncoder(w).Encode(Todo{ID: id, Text: req.Text, Status: status, Created: created, Position: position})
 }
 
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
@@ -162,6 +169,49 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(t)
+}
+
+func (h *Handler) Reorder(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		IDs []string `json:"ids"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid json", http.StatusBadRequest)
+		return
+	}
+
+	if len(req.IDs) == 0 {
+		return
+	}
+
+	// Update positions based on index
+	// We'll reset normalization here: 0, 1024, 2048...
+	// Using a transaction would be better but keeping it simple
+
+	// Prepare batch update is cleaner but one-by-one inside tx is okay for small lists
+	tx, err := h.db.Begin(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer tx.Rollback(r.Context())
+
+	for i, id := range req.IDs {
+		pos := float64(i) * 1024.0
+		_, err := tx.Exec(r.Context(), `UPDATE todos SET position = $1 WHERE id = $2`, pos, id)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+
+	if err := tx.Commit(r.Context()); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(`{"success":true}`))
 }
 
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {

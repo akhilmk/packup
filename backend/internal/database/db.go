@@ -74,7 +74,12 @@ func ensureSchema(ctx context.Context, db *pgxpool.Pool) error {
 		id TEXT PRIMARY KEY,
 		text TEXT NOT NULL,
 		status VARCHAR(20) NOT NULL DEFAULT 'pending',
-		created TIMESTAMPTZ NOT NULL DEFAULT now()
-	);`)
+		created TIMESTAMPTZ NOT NULL DEFAULT now(),
+		position DOUBLE PRECISION NOT NULL DEFAULT 0
+	);
+	
+	-- Migration for existing table (idempotent)
+	ALTER TABLE todos ADD COLUMN IF NOT EXISTS position DOUBLE PRECISION NOT NULL DEFAULT 0;
+	`)
 	return err
 }
