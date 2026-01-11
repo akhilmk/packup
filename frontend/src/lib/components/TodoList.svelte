@@ -7,6 +7,11 @@
 
   let todos: Todo[] = [];
   let loading = true;
+  let filter: 'all' | 'pending' | 'in-progress' | 'done' = 'all';
+
+  $: filteredTodos = filter === 'all' 
+    ? todos 
+    : todos.filter(t => t.status === filter);
 
   async function fetchTodos() {
     try {
@@ -21,6 +26,7 @@
   let draggedItemIndex: number | null = null;
 
   function handleDragStart(event: DragEvent, index: number) {
+    if (filter !== 'all') return;
     draggedItemIndex = index;
     if (event.dataTransfer) {
       event.dataTransfer.effectAllowed = 'move';
@@ -62,22 +68,42 @@
       {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
     </p>
     
-    <div class="mt-6 flex justify-center space-x-4">
-      <div class="px-4 py-1.5 bg-indigo-50 rounded-full border border-indigo-100/50">
-        <span class="text-xs font-bold text-indigo-600 uppercase tracking-wider">
-          {todos.filter(t => t.status === 'pending').length} Pending
+    <div class="mt-6 flex justify-center flex-wrap gap-4">
+      <button 
+        class="px-4 py-1.5 rounded-full border transition-all duration-200 {filter === 'all' ? 'bg-indigo-600 text-white border-indigo-600 shadow-md transform scale-105' : 'bg-white text-slate-500 border-slate-200 hover:border-indigo-300 hover:text-indigo-600'}"
+        on:click={() => filter = 'all'}
+      >
+        <span class="text-xs font-bold uppercase tracking-wider">
+          All ({todos.length})
         </span>
-      </div>
-      <div class="px-4 py-1.5 bg-amber-50 rounded-full border border-amber-100/50">
-        <span class="text-xs font-bold text-amber-600 uppercase tracking-wider">
-          {todos.filter(t => t.status === 'in-progress').length} In Progress
+      </button>
+
+      <button 
+        class="px-4 py-1.5 rounded-full border transition-all duration-200 {filter === 'pending' ? 'bg-indigo-50 border-indigo-200 ring-2 ring-indigo-100 shadow-sm' : 'bg-white border-slate-200 hover:bg-slate-50'}"
+        on:click={() => filter = 'pending'}
+      >
+        <span class="text-xs font-bold {filter === 'pending' ? 'text-indigo-700' : 'text-slate-500'} uppercase tracking-wider">
+          Pending ({todos.filter(t => t.status === 'pending').length})
         </span>
-      </div>
-      <div class="px-4 py-1.5 bg-emerald-50 rounded-full border border-emerald-100/50">
-        <span class="text-xs font-bold text-emerald-600 uppercase tracking-wider">
-          {todos.filter(t => t.status === 'done').length} Done
+      </button>
+
+      <button 
+        class="px-4 py-1.5 rounded-full border transition-all duration-200 {filter === 'in-progress' ? 'bg-amber-50 border-amber-200 ring-2 ring-amber-100 shadow-sm' : 'bg-white border-slate-200 hover:bg-slate-50'}"
+        on:click={() => filter = 'in-progress'}
+      >
+        <span class="text-xs font-bold {filter === 'in-progress' ? 'text-amber-700' : 'text-slate-500'} uppercase tracking-wider">
+          In Progress ({todos.filter(t => t.status === 'in-progress').length})
         </span>
-      </div>
+      </button>
+
+      <button 
+        class="px-4 py-1.5 rounded-full border transition-all duration-200 {filter === 'done' ? 'bg-emerald-50 border-emerald-200 ring-2 ring-emerald-100 shadow-sm' : 'bg-white border-slate-200 hover:bg-slate-50'}"
+        on:click={() => filter = 'done'}
+      >
+        <span class="text-xs font-bold {filter === 'done' ? 'text-emerald-700' : 'text-slate-500'} uppercase tracking-wider">
+          Done ({todos.filter(t => t.status === 'done').length})
+        </span>
+      </button>
     </div>
   </header>
   
@@ -100,15 +126,15 @@
     </div>
   {:else}
     <div class="glass-card rounded-3xl overflow-hidden border-border divide-y divide-gray-50">
-      {#each todos as todo, index (todo.id)}
+      {#each filteredTodos as todo, index (todo.id)}
         <div
           role="listitem"
-          draggable="true"
+          draggable={filter === 'all'}
           animate:flip={{ duration: 300 }}
           on:dragstart={(e) => handleDragStart(e, index)}
           on:dragover={(e) => handleDragOver(e, index)}
           on:dragend={handleDragEnd}
-          class="cursor-grab active:cursor-grabbing {draggedItemIndex === index ? 'opacity-50 bg-indigo-50/50' : ''}"
+          class="cursor-grab active:cursor-grabbing {draggedItemIndex === index ? 'opacity-50 bg-indigo-50/50' : ''} {filter !== 'all' ? 'cursor-default active:cursor-default' : ''}"
         >
           <TodoItem {todo} on:update={fetchTodos} />
         </div>
