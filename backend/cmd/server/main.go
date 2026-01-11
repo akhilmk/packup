@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 
+	"todo-app/internal/auth"
 	"todo-app/internal/database"
 	"todo-app/internal/todo"
 )
@@ -20,13 +21,23 @@ func main() {
 	}
 	defer pool.Close()
 
-	// Initialize Handler
+	// Initialize Handlers
+	authHandler := auth.NewHandler(pool)
 	todoHandler := todo.NewHandler(pool)
 
 	mux := http.NewServeMux()
 
-	// Register Todo API routes
-	todoHandler.RegisterRoutes(mux)
+	// Register Auth routes
+	authHandler.RegisterRoutes(mux)
+
+	// Register Protected Todo API routes
+	// We wrap these with the auth middleware
+	mw := authHandler.Middleware
+	mux.HandleFunc("GET /api/todos", mw(todoHandler.List))
+	mux.HandleFunc("POST /api/todos", mw(todoHandler.Create))
+	mux.HandleFunc("PUT /api/todos/{id}", mw(todoHandler.Update))
+	mux.HandleFunc("PUT /api/todos/reorder", mw(todoHandler.Reorder))
+	mux.HandleFunc("DELETE /api/todos/{id}", mw(todoHandler.Delete))
 
 	// Serve static frontend files
 	// Try multiple paths for different deployment scenarios

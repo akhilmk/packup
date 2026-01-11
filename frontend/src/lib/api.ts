@@ -75,4 +75,24 @@ export const api = {
         });
         await handleResponse<{ success: boolean }>(response);
     },
+
+    // Auth
+    async getMe(): Promise<User> {
+        const response = await fetch(`${API_BASE_URL}/auth/me`);
+        return handleResponse<User>(response);
+    },
+
+    async logout(): Promise<void> {
+        const response = await fetch(`${API_BASE_URL}/auth/logout`, {
+            method: "POST",
+        });
+        if (!response.ok) throw new Error("Logout failed");
+    }
 };
+
+export interface User {
+    id: string;
+    email: string;
+    name: string;
+    avatar_url: string;
+}

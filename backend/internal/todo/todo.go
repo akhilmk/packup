@@ -35,7 +35,13 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 }
 
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
-	rows, err := h.db.Query(r.Context(), `SELECT id, text, status, created, position FROM todos ORDER BY position ASC, created DESC LIMIT 100`)
+	userID, ok := r.Context().Value("user_id").(string)
+	if !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	rows, err := h.db.Query(r.Context(), `SELECT id, text, status, created, position FROM todos WHERE user_id=$1 ORDER BY position ASC, created DESC LIMIT 100`, userID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -62,6 +68,12 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value("user_id").(string)
+	if !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
 	var req struct {
 		Text string `json:"text"`
 	}
@@ -84,12 +96,12 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	status := "pending"
 	created := time.Now()
 
-	// Get min position to put at top
+	// Get min position to put at top (for this user)
 	var minPos float64
-	_ = h.db.QueryRow(r.Context(), `SELECT COALESCE(MIN(position), 0) FROM todos`).Scan(&minPos)
+	_ = h.db.QueryRow(r.Context(), `SELECT COALESCE(MIN(position), 0) FROM todos WHERE user_id=$1`, userID).Scan(&minPos)
 	position := minPos - 1024.0
 
-	_, err := h.db.Exec(r.Context(), `INSERT INTO todos(id, text, status, created, position) VALUES($1,$2,$3,$4,$5)`, id, req.Text, status, created, position)
+	_, err := h.db.Exec(r.Context(), `INSERT INTO todos(id, text, status, created, position, user_id) VALUES($1,$2,$3,$4,$5,$6)`, id, req.Text, status, created, position, userID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -101,6 +113,12 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value("user_id").(string)
+	if !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
 	id := r.PathValue("id")
 	if id == "" {
 		http.Error(w, "id required", http.StatusBadRequest)
@@ -132,9 +150,9 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Check existence
+	// Check existence and ownership
 	var exists bool
-	err := h.db.QueryRow(r.Context(), `SELECT EXISTS(SELECT 1 FROM todos WHERE id=$1)`, id).Scan(&exists)
+	err := h.db.QueryRow(r.Context(), `SELECT EXISTS(SELECT 1 FROM todos WHERE id=$1 AND user_id=$2)`, id, userID).Scan(&exists)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -144,17 +162,11 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Dynamic update: only update fields that are provided
-	// Note: We use COALESCE(NULLIF($2,''), text) for text to allow empty updates (if client sends empty string to mean "no change").
-	// But actually our client sends partial JSON.
-	// A better way for SQL updates with partial data is often detailed.
-	// Here simplified: If req.Status is empty, we keep old status.
-
 	_, err = h.db.Exec(r.Context(), `
 		UPDATE todos 
 		SET text = CASE WHEN $2 = '' THEN text ELSE $2 END, 
 		    status = CASE WHEN $3 = '' THEN status ELSE $3 END 
-		WHERE id=$1`, id, req.Text, req.Status)
+		WHERE id=$1 AND user_id=$4`, id, req.Text, req.Status, userID)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -172,6 +184,12 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Reorder(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value("user_id").(string)
+	if !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
 	var req struct {
 		IDs []string `json:"ids"`
 	}
@@ -184,11 +202,6 @@ func (h *Handler) Reorder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Update positions based on index
-	// We'll reset normalization here: 0, 1024, 2048...
-	// Using a transaction would be better but keeping it simple
-
-	// Prepare batch update is cleaner but one-by-one inside tx is okay for small lists
 	tx, err := h.db.Begin(r.Context())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -198,7 +211,8 @@ func (h *Handler) Reorder(w http.ResponseWriter, r *http.Request) {
 
 	for i, id := range req.IDs {
 		pos := float64(i) * 1024.0
-		_, err := tx.Exec(r.Context(), `UPDATE todos SET position = $1 WHERE id = $2`, pos, id)
+		// Ensure we only update if it belongs to user
+		_, err := tx.Exec(r.Context(), `UPDATE todos SET position = $1 WHERE id = $2 AND user_id = $3`, pos, id, userID)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -215,13 +229,19 @@ func (h *Handler) Reorder(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value("user_id").(string)
+	if !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
 	id := r.PathValue("id")
 	if id == "" {
 		http.Error(w, "id required", http.StatusBadRequest)
 		return
 	}
 
-	cmd, err := h.db.Exec(r.Context(), `DELETE FROM todos WHERE id=$1`, id)
+	cmd, err := h.db.Exec(r.Context(), `DELETE FROM todos WHERE id=$1 AND user_id=$2`, id, userID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
