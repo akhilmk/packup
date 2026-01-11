@@ -3,11 +3,9 @@ module todo-app
 go 1.25.5
 
 require (
-	connectrpc.com/connect v1.19.1
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.8.0
 	github.com/joho/godotenv v1.5.1
-	google.golang.org/protobuf v1.36.11
 )
 
 require (
