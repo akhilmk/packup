@@ -1,2 +1,2 @@
-# Ignore the backend server binary
-bin/server
+# Ignore the bin folder
+bin/
