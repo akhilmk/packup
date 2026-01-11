@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { request } from "../client";
+  import { api } from "../api";
   import { createEventDispatcher } from "svelte";
 
   const dispatch = createEventDispatcher();
@@ -9,7 +9,7 @@
   async function addTodo() {
     if (!text.trim() || text.length > LIMIT) return;
     try {
-      await request.addTodo({ text });
+      await api.createTodo(text);
       text = "";
       dispatch("added");
     } catch (e) {

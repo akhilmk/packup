@@ -1,7 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { request } from "../client";
-  import type { Todo } from "../../gen/proto/todo_pb";
+  import { api, type Todo } from "../api";
   import TodoItem from "./TodoItem.svelte";
   import AddTodo from "./AddTodo.svelte";
 
@@ -10,8 +9,7 @@
 
   async function fetchTodos() {
     try {
-      const res = await request.listTodos({});
-      todos = res.todos;
+      todos = await api.listTodos();
     } catch (e) {
       console.error(e);
     } finally {

@@ -1,47 +1,77 @@
-# Svelte + TS + Vite
+# REST API Migration - Frontend
 
-This template should help get you started developing with Svelte and TypeScript in Vite.
+This document describes the migration from ConnectRPC to pure REST API.
 
-## Recommended IDE Setup
+## Changes Made
 
-[VS Code](https://code.visualstudio.com/) + [Svelte](https://marketplace.visualstudio.com/items?itemName=svelte.svelte-vscode).
+### 1. New REST API Client (`src/lib/api.ts`)
+Created a new TypeScript module that provides typed REST API calls:
+- `listTodos()` - GET /api/todos
+- `createTodo(text)` - POST /api/todos
+- `updateTodo(id, updates)` - PUT /api/todos/{id}
+- `deleteTodo(id)` - DELETE /api/todos/{id}
 
-## Need an official Svelte framework?
+### 2. Updated Components
+All Svelte components now use the REST API client:
+- `TodoList.svelte` - Fetches todos using REST
+- `AddTodo.svelte` - Creates todos using REST
+- `TodoItem.svelte` - Updates and deletes todos using REST
 
-Check out [SvelteKit](https://github.com/sveltejs/kit#readme), which is also powered by Vite. Deploy anywhere with its serverless-first approach and adapt to various platforms, with out of the box support for TypeScript, SCSS, and Less, and easily-added support for mdsvex, GraphQL, PostCSS, Tailwind CSS, and more.
+### 3. Removed Dependencies
+- `@bufbuild/protoc-gen-es`
+- `@connectrpc/protoc-gen-connect-es`
+- Removed `src/gen/` directory (generated protobuf files)
+- Removed `src/lib/client.ts` (old ConnectRPC client)
 
-## Technical considerations
+### 4. API Configuration
+The frontend now connects to `http://localhost:8080/api` (configurable in `api.ts`)
 
-**Why use this over SvelteKit?**
+## Building the Frontend
 
-- It brings its own routing solution which might not be preferable for some users.
-- It is first and foremost a framework that just happens to use Vite under the hood, not a Vite app.
+```bash
+# Install dependencies
+npm install
 
-This template contains as little as possible to get started with Vite + TypeScript + Svelte, while taking into account the developer experience with regards to HMR and intellisense. It demonstrates capabilities on par with the other `create-vite` templates and is a good starting point for beginners dipping their toes into a Vite + Svelte project.
+# Build for production (creates dist/ folder)
+npm run build
 
-Should you later need the extended capabilities and extensibility provided by SvelteKit, the template has been structured similarly to SvelteKit so that it is easy to migrate.
+# Run development server
+npm run dev
+```
 
-**Why `global.d.ts` instead of `compilerOptions.types` inside `jsconfig.json` or `tsconfig.json`?**
+## Using Make Commands
 
-Setting `compilerOptions.types` shuts out all other types not explicitly listed in the configuration. Using triple-slash references keeps the default TypeScript setting of accepting type information from the entire workspace, while also adding `svelte` and `vite/client` type information.
+```bash
+# Install dependencies
+make frontend-install
 
-**Why include `.vscode/extensions.json`?**
+# Build static files
+make frontend-build
 
-Other templates indirectly recommend extensions via the README, but this file allows VS Code to prompt the user to install the recommended extension upon opening the project.
+# Clean dist folder
+make frontend-clean
 
-**Why enable `allowJs` in the TS template?**
+# Build both frontend and backend
+make build-all
+```
 
-While `allowJs: false` would indeed prevent the use of `.js` files in the project, it does not prevent the use of JavaScript syntax in `.svelte` files. In addition, it would force `checkJs: false`, bringing the worst of both worlds: not being able to guarantee the entire codebase is TypeScript, and also having worse typechecking for the existing JavaScript. In addition, there are valid use cases in which a mixed codebase may be relevant.
+## API Endpoints
 
-**Why is HMR not preserving my local component state?**
+The backend exposes the following REST endpoints:
 
-HMR state preservation comes with a number of gotchas! It has been disabled by default in both `svelte-hmr` and `@sveltejs/vite-plugin-svelte` due to its often surprising behavior. You can read the details [here](https://github.com/rixo/svelte-hmr#svelte-hmr).
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/todos` | List all todos |
+| POST | `/api/todos` | Create a new todo |
+| PUT | `/api/todos/{id}` | Update a todo |
+| DELETE | `/api/todos/{id}` | Delete a todo |
 
-If you have state that's important to retain within a component, consider creating an external store which would not be replaced by HMR.
+## Todo Type Definition
 
-```ts
-// store.ts
-// An extremely simple external store
-import { writable } from 'svelte/store'
-export default writable(0)
+```typescript
+interface Todo {
+  id: string;
+  text: string;
+  completed: boolean;
+}
 ```

@@ -1,6 +1,5 @@
 <script lang="ts">
-  import { request } from "../client";
-  import type { Todo } from "../../gen/proto/todo_pb";
+  import { api, type Todo } from "../api";
   import { createEventDispatcher } from "svelte";
 
   export let todo: Todo;
@@ -12,7 +11,7 @@
 
   async function toggleComplete() {
     try {
-      await request.updateTodo({ ...todo, completed: !todo.completed });
+      await api.updateTodo(todo.id, { completed: !todo.completed });
       dispatch("update");
     } catch (e) {
       console.error(e);
@@ -21,7 +20,7 @@
 
   async function deleteTodo() {
     try {
-      await request.deleteTodo({ id: todo.id });
+      await api.deleteTodo(todo.id);
       dispatch("update");
     } catch (e) {
       console.error(e);
@@ -31,7 +30,7 @@
   async function saveEdit() {
     if (editText.length > LIMIT || !editText.trim()) return;
     try {
-      await request.updateTodo({ ...todo, text: editText });
+      await api.updateTodo(todo.id, { text: editText });
       isEditing = false;
       dispatch("update");
     } catch (e) {
