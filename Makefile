@@ -55,7 +55,7 @@ docker-build: build-all
 docker-run:
 	@echo "Starting container $(IMAGE_NAME)..."
 	docker run -d \
-		--name go-todo-app \
+		--name go-todo \
 		-p 8080:8080 \
 		--network host \
 		$(IMAGE_NAME):latest
@@ -79,13 +79,6 @@ docker-clean:
 	@echo "Removing Docker images..."
 	-docker rmi $(IMAGE_NAME):latest
 	@echo "✓ Docker images removed"
-
-# Complete release: build everything and create Docker image
-release: build-all docker-build
-	@echo "✓ Release complete!"
-	@echo "  - Binary: bin/server"
-	@echo "  - Frontend: bin/frontend/dist"
-	@echo "  - Docker: $(IMAGE_NAME):latest"
 
 # Clean build artifacts
 clean:
