@@ -2,6 +2,13 @@
   import TodoList from "./lib/components/TodoList.svelte";
 </script>
 
-<main class="min-h-screen bg-gray-50 py-12">
+<svelte:head>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+</svelte:head>
+
+<main>
   <TodoList />
 </main>
+
