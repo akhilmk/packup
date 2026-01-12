@@ -81,7 +81,7 @@
   <!-- Status Cycle Button -->
   <button 
     on:click={cycleStatus}
-    class="relative flex items-center justify-center w-6 h-6 rounded-full border-2 transition-all duration-200 
+    class="relative flex items-center justify-center w-6 h-6 rounded-full border-2 transition-all duration-200 cursor-pointer hover:scale-110 active:scale-95
            {todo.status === 'done' ? 'bg-emerald-500 border-emerald-500' : 
             todo.status === 'in-progress' ? 'bg-amber-100 border-amber-400' : 
             'bg-white border-slate-200 hover:border-indigo-400'}"

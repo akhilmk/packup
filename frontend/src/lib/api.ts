@@ -112,6 +112,17 @@ export const api = {
         return data.todos;
     },
 
+    async updateUserTodo(userId: string, todoId: string, updates: { status: TodoStatus }): Promise<void> {
+        const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/todos/${todoId}`, {
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(updates),
+        });
+        await handleResponse<{ success: boolean }>(response);
+    },
+
     async createDefaultTask(text: string): Promise<Todo> {
         const response = await fetch(`${API_BASE_URL}/admin/todos`, {
             method: "POST",

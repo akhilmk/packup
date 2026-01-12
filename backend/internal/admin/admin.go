@@ -330,3 +330,66 @@ func (h *Handler) ListUserTodos(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]any{"todos": todos})
 }
+
+// UpdateUserTodo updates a specific user's todo status (admin only)
+func (h *Handler) UpdateUserTodo(w http.ResponseWriter, r *http.Request) {
+	userID := r.PathValue("userId")
+	todoID := r.PathValue("todoId")
+	if userID == "" || todoID == "" {
+		http.Error(w, "userId and todoId required", http.StatusBadRequest)
+		return
+	}
+
+	var req struct {
+		Status string `json:"status"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid json", http.StatusBadRequest)
+		return
+	}
+
+	// Verify user exists
+	var exists bool
+	err := h.db.QueryRow(r.Context(), `SELECT EXISTS(SELECT 1 FROM users WHERE id=$1)`, userID).Scan(&exists)
+	if err != nil || !exists {
+		http.Error(w, "user not found", http.StatusNotFound)
+		return
+	}
+
+	// Check if todo is a default task
+	var isDefaultTask bool
+	err = h.db.QueryRow(r.Context(), `SELECT is_default_task FROM todos WHERE id=$1`, todoID).Scan(&isDefaultTask)
+	if err != nil {
+		http.Error(w, "todo not found", http.StatusNotFound)
+		return
+	}
+
+	if !isDefaultTask {
+		// As per requirements, admins cannot change status of personal shared tasks
+		http.Error(w, "forbidden: admins can only update status of default tasks", http.StatusForbidden)
+		return
+	}
+
+	// For default tasks, UPSERT into user_todo_state
+	// We only update status, position remains checked/default
+	_, err = h.db.Exec(r.Context(), `
+		INSERT INTO user_todo_state (user_id, todo_id, status, position, updated_at)
+		VALUES ($1, $2, $3, 
+			(SELECT COALESCE(
+				(SELECT position FROM user_todo_state WHERE user_id=$1 AND todo_id=$2),
+				(SELECT position FROM todos WHERE id=$2)
+			)),
+			NOW()
+		)
+		ON CONFLICT (user_id, todo_id) 
+		DO UPDATE SET status = EXCLUDED.status, updated_at = NOW()
+	`, userID, todoID, req.Status)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(`{"success":true}`))
+}

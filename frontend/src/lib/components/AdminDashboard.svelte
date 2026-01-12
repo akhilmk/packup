@@ -108,6 +108,29 @@
     } catch (e) {
       console.error("Failed to delete default task", e);
     }
+
+  }
+
+  async function handleCycleUserTodoStatus(todo: Todo) {
+    if (!selectedUser) return;
+    
+    // Determine next status
+    let nextStatus: 'pending' | 'in-progress' | 'done';
+    if (todo.status === 'pending') nextStatus = 'in-progress';
+    else if (todo.status === 'in-progress') nextStatus = 'done';
+    else nextStatus = 'pending';
+
+    try {
+      if (todo.is_default_task) {
+        await api.updateUserTodo(selectedUser.id, todo.id, { status: nextStatus });
+        // Refresh list
+        await loadUserTodos(selectedUser);
+      } else {
+        alert("Admins can only change status of default tasks, not personal shared tasks.");
+      }
+    } catch (e) {
+      console.error("Failed to update user todo status", e);
+    }
   }
 </script>
 
@@ -202,7 +225,10 @@
     <div class="space-y-6">
       <!-- Add Admin Todo Form -->
       <div class="glass-card rounded-2xl p-6">
-        <h2 class="text-lg font-bold text-slate-800 mb-4">Add Default Task</h2>
+        <h2 class="text-lg font-bold text-slate-800 mb-2">Add Default Task</h2>
+        <p class="text-sm text-slate-500 mb-4">
+          This task will be automatically assigned to <strong>all users</strong>. Each user tracks their own status for this task.
+        </p>
         <form on:submit|preventDefault={handleCreateAdminTodo} class="flex gap-3">
           <input
             bind:value={newAdminTodoText}
@@ -328,15 +354,36 @@
       {:else}
         {#each userTodos as todo}
           <div class="p-4 flex items-center gap-4">
-            <div class="flex items-center justify-center w-6 h-6 rounded-full border-2 {todo.status === 'done' ? 'bg-emerald-500 border-emerald-500' : todo.status === 'in-progress' ? 'bg-amber-100 border-amber-400' : 'bg-white border-slate-200'}">
-              {#if todo.status === 'done'}
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4">
-                  <polyline points="20 6 9 17 4 12"></polyline>
-                </svg>
-              {:else if todo.status === 'in-progress'}
-                <div class="w-2.5 h-2.5 bg-amber-500 rounded-full animate-pulse"></div>
-              {/if}
-            </div>
+            <!-- Status Indicator / Initial for Admin View -->
+            {#if todo.is_default_task}
+              <button 
+                on:click={() => handleCycleUserTodoStatus(todo)}
+                class="relative flex items-center justify-center w-6 h-6 rounded-full border-2 transition-all duration-200 cursor-pointer hover:ring-2 hover:ring-offset-1 hover:ring-indigo-200
+                       {todo.status === 'done' ? 'bg-emerald-500 border-emerald-500' : 
+                        todo.status === 'in-progress' ? 'bg-amber-100 border-amber-400' : 
+                        'bg-white border-slate-200 hover:border-indigo-400'}"
+                title="Click to change status (Default Task)"
+              >
+                {#if todo.status === 'done'}
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                {:else if todo.status === 'in-progress'}
+                  <div class="w-2.5 h-2.5 bg-amber-500 rounded-full animate-pulse"></div>
+                {/if}
+              </button>
+            {:else}
+               <!-- Read-only indicator for shared personal tasks -->
+               <div class="flex items-center justify-center w-6 h-6 rounded-full border-2 {todo.status === 'done' ? 'bg-emerald-500 border-emerald-500' : todo.status === 'in-progress' ? 'bg-amber-100 border-amber-400' : 'bg-white border-slate-200'}" title="Shared personal task (Read-only)">
+                {#if todo.status === 'done'}
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                {:else if todo.status === 'in-progress'}
+                  <div class="w-2.5 h-2.5 bg-amber-500 rounded-full animate-pulse"></div>
+                {/if}
+              </div>
+            {/if}
             <span class="flex-1 font-medium text-slate-700 {todo.status === 'done' ? 'line-through opacity-60' : ''}">
               {todo.text}
               {#if todo.is_default_task}
