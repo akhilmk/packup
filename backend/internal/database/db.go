@@ -46,7 +46,7 @@ func New(ctx context.Context) (*pgxpool.Pool, error) {
 			port = "5432"
 		}
 		if name == "" {
-			name = "itinera"
+			name = "packup"
 		}
 		if ssl == "" {
 			ssl = "disable"

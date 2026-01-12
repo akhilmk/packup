@@ -6,10 +6,10 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/akhilmk/itinera/internal/admin"
-	"github.com/akhilmk/itinera/internal/auth"
-	"github.com/akhilmk/itinera/internal/database"
-	"github.com/akhilmk/itinera/internal/todo"
+	"github.com/akhilmk/packup/internal/admin"
+	"github.com/akhilmk/packup/internal/auth"
+	"github.com/akhilmk/packup/internal/database"
+	"github.com/akhilmk/packup/internal/todo"
 )
 
 func main() {

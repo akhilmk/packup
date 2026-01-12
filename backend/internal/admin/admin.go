@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/akhilmk/itinera/internal/auth"
-	"github.com/akhilmk/itinera/internal/httputil"
-	"github.com/akhilmk/itinera/internal/models"
+	"github.com/akhilmk/packup/internal/auth"
+	"github.com/akhilmk/packup/internal/httputil"
+	"github.com/akhilmk/packup/internal/models"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 )

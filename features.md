@@ -9,7 +9,8 @@
   - if admin added a custom task under a user, have a option to edit, delete this task for admin only, other default tasks can be edit deleted from default task page
   - all adminshared task delete, edit permission will be only for admin, customer can only update progress of shared task
 - shared task can have label like admin shared or something 
--- user shared todo admin can only see, with label 'user created', no operations
+--  admin shared todo with user, with label 'custom task' with all permission for admin, user can only update progress
+
 
 ** Default Task tab
 - admin can add default tasks, this will go list under users with label 'default task'

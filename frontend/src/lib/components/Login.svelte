@@ -18,7 +18,7 @@
     
     
     <h1 class="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600 mb-3 tracking-tight">
-      Itinera
+      Packup
     </h1>
     <p class="text-slate-500 mb-8 font-medium">
       Your journey, organized. 

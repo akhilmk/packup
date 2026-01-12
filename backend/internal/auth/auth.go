@@ -11,7 +11,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/akhilmk/itinera/internal/models"
+	"github.com/akhilmk/packup/internal/models"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"

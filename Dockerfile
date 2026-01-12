@@ -6,7 +6,7 @@ RUN apk --no-cache add ca-certificates
 WORKDIR /app
 
 # Copy the pre-built binary
-COPY bin/itinera /app/itinera
+COPY bin/packup /app/packup
 
 # Copy the frontend static files
 COPY bin/frontend/dist /app/frontend/dist
@@ -21,4 +21,4 @@ EXPOSE 8080
 ENV PORT=8080
 
 # Run the binary
-CMD ["/app/itinera"]
+CMD ["/app/packup"]

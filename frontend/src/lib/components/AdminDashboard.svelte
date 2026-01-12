@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import { api, type Todo, type User } from "../api";
   import StatusIndicator from "./StatusIndicator.svelte";
+  import ConfirmModal from "./ConfirmModal.svelte";
 
   type View = 'users' | 'admin-todos' | 'user-todos';
   
@@ -16,6 +17,15 @@
   let newAdminTodoText = "";
   let editingTodoId: string | null = null;
   let editingTodoText = "";
+
+  // Confirmation modal state
+  let showConfirmModal = false;
+  let confirmModalConfig = {
+    title: '',
+    message: '',
+    onConfirm: () => {},
+    danger: false
+  };
 
   onMount(async () => {
     await loadUsers();
@@ -101,15 +111,21 @@
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Delete this default task? It will be removed for all users.")) return;
-    
-    try {
-      await api.deleteDefaultTask(id);
-      await loadAdminTodos();
-    } catch (e) {
-      console.error("Failed to delete default task", e);
-    }
-
+    confirmModalConfig = {
+      title: 'Delete Default Task',
+      message: 'Are you sure you want to delete this default task? It will be removed for all users and cannot be undone.',
+      danger: true,
+      onConfirm: async () => {
+        try {
+          await api.deleteDefaultTask(id);
+          await loadAdminTodos();
+        } catch (e) {
+          console.error("Failed to delete default task", e);
+        }
+        showConfirmModal = false;
+      }
+    };
+    showConfirmModal = true;
   }
 
   async function handleCycleUserTodoStatus(todo: Todo) {
@@ -189,20 +205,29 @@
 
   async function handleDeleteUserTodo(todo: Todo) {
     if (!selectedUser) return;
-    if (!confirm("Delete this task?")) return;
     
-    try {
-      await api.deleteUserTodo(selectedUser.id, todo.id);
-      await loadUserTodos(selectedUser);
-    } catch (e) {
-      console.error("Failed to delete user todo", e);
-    }
+    confirmModalConfig = {
+      title: 'Delete Task',
+      message: `Are you sure you want to delete "${todo.text}"? This action cannot be undone.`,
+      danger: true,
+      onConfirm: async () => {
+        if (!selectedUser) return;
+        try {
+          await api.deleteUserTodo(selectedUser.id, todo.id);
+          await loadUserTodos(selectedUser);
+        } catch (e) {
+          console.error("Failed to delete user todo", e);
+        }
+        showConfirmModal = false;
+      }
+    };
+    showConfirmModal = true;
   }
 </script>
 
 <div class="max-w-6xl mx-auto p-4 md:p-8">
   <header class="mb-8">
-    <!-- Itinera Icon and Title -->
+    <!-- Packup Icon and Title -->
     <div class="flex items-center gap-4 mb-6">
       <div class="w-12 h-12 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
         <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -212,7 +237,7 @@
         </svg>
       </div>
       <div>
-        <h1 class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600">Itinera</h1>
+        <h1 class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600">Packup</h1>
         <p class="text-sm text-slate-500 font-medium">Admin Dashboard</p>
       </div>
     </div>
@@ -566,3 +591,13 @@
     </div>
   {/if}
 </div>
+
+{#if showConfirmModal}
+  <ConfirmModal
+    title={confirmModalConfig.title}
+    message={confirmModalConfig.message}
+    danger={confirmModalConfig.danger}
+    on:confirm={confirmModalConfig.onConfirm}
+    on:cancel={() => showConfirmModal = false}
+  />
+{/if}

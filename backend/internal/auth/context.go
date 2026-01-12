@@ -3,7 +3,7 @@ package auth
 import (
 	"context"
 
-	"github.com/akhilmk/itinera/internal/models"
+	"github.com/akhilmk/packup/internal/models"
 )
 
 // contextKey is a type for context keys to avoid collisions.

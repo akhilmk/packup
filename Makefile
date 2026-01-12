@@ -1,6 +1,6 @@
 COMPOSE_FILE ?= compose.postgres-dev.yml
 DOCKER_COMPOSE ?= docker compose
-IMAGE_NAME := itinera
+IMAGE_NAME := packup
 
 .PHONY: db-up db-down db-logs db-shell frontend-install frontend-build \
         build-backend build-frontend build-all docker-build docker-run docker-stop \
@@ -29,7 +29,7 @@ db-logs:
 
 db-shell:
 	# open an interactive psql shell in the postgres service
-	$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) exec postgres psql -U $${DB_USER:-postgres} -d $${DB_NAME:-itinera}
+	$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) exec postgres psql -U $${DB_USER:-postgres} -d $${DB_NAME:-packup}
 
 # Frontend commands
 frontend-install:
@@ -48,11 +48,11 @@ build-frontend: frontend-build
 # Backend commands
 build-backend:
 	@echo "Building Go backend..."
-	cd backend && CGO_ENABLED=0 GOOS=linux go build -o ../bin/itinera ./cmd/server
+	cd backend && CGO_ENABLED=0 GOOS=linux go build -o ../bin/packup ./cmd/server
 	@echo "Copying migrations to bin/migrations..."
 	mkdir -p bin/migrations
 	cp -r backend/migrations/* bin/migrations/
-	@echo "✓ Backend binary created at bin/itinera"
+	@echo "✓ Backend binary created at bin/packup"
 	@echo "✓ Migrations copied to bin/migrations"
 
 # Build everything (backend + frontend)
@@ -68,23 +68,23 @@ docker-build: build-all
 # Run Docker container
 docker-run:
 	@echo "Starting container $(IMAGE_NAME)..."
-	-docker rm -f itinera 2>/dev/null
+	-docker rm -f packup 2>/dev/null
 	docker run -d \
-		--name itinera \
+		--name packup \
 		-p 8080:8080 \
 		--add-host=host.docker.internal:host-gateway \
 		--env-file .env.dev \
 		-e DB_HOST=host.docker.internal \
 		$(IMAGE_NAME):latest
-	@echo "✓ Container started: itinera"
+	@echo "✓ Container started: packup"
 	@echo "  Access at: http://localhost:8080"
 	@echo "  View logs: make docker-logs"
 
 # Stop and remove Docker container
 docker-stop:
 	@echo "Stopping container..."
-	-docker stop itinera
-	-docker rm itinera
+	-docker stop packup
+	-docker rm packup
 	@echo "✓ Container stopped and removed"
 
 # Clean Docker images
@@ -95,12 +95,12 @@ docker-clean:
 
 # View Docker container logs
 docker-logs:
-	docker logs -f itinera
+	docker logs -f packup
 
 # Complete release: build everything and create Docker image
 release: build-all docker-build
 	@echo "✓ Release complete!"
-	@echo "  - Binary: bin/itinera"
+	@echo "  - Binary: bin/packup"
 	@echo "  - Frontend: bin/frontend/dist"
 	@echo "  - Docker: $(IMAGE_NAME):latest"
 

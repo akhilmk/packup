@@ -7,7 +7,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/akhilmk/itinera/internal/models"
+	"github.com/akhilmk/packup/internal/models"
 )
 
 // TestDetermineUserRole tests the role determination logic

@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/akhilmk/itinera/internal/auth"
-	"github.com/akhilmk/itinera/internal/models"
+	"github.com/akhilmk/packup/internal/auth"
+	"github.com/akhilmk/packup/internal/models"
 )
 
 // Test structs

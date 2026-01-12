@@ -1,4 +1,4 @@
--- Database schema for Itinera
+-- Database schema for Packup
 -- Run this manually when needed during development
 
 CREATE TABLE IF NOT EXISTS users (
