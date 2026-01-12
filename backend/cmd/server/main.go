@@ -33,27 +33,16 @@ func main() {
 	authHandler.RegisterRoutes(mux)
 
 	// Register Protected Todo API routes
-	// We wrap these with the auth middleware
+	// we pass the auth middleware to the handler, so it can wrap its routes
 	mw := authHandler.Middleware
-	mux.HandleFunc("GET /api/todos", mw(todoHandler.List))
-	mux.HandleFunc("POST /api/todos", mw(todoHandler.Create))
-	mux.HandleFunc("PUT /api/todos/{id}", mw(todoHandler.Update))
-	mux.HandleFunc("PUT /api/todos/reorder", mw(todoHandler.Reorder))
-	mux.HandleFunc("DELETE /api/todos/{id}", mw(todoHandler.Delete))
+	todoHandler.RegisterRoutes(mux, mw)
 
 	// Register Admin routes (require admin role)
+	// We wrap the standard auth middleware AND the admin check
 	adminMw := func(next http.HandlerFunc) http.HandlerFunc {
 		return mw(adminHandler.RequireAdmin(next))
 	}
-	mux.HandleFunc("GET /api/admin/users", adminMw(adminHandler.ListUsers))
-	mux.HandleFunc("GET /api/admin/todos", adminMw(adminHandler.ListAdminTodos))
-	mux.HandleFunc("POST /api/admin/todos", adminMw(adminHandler.CreateAdminTodo))
-	mux.HandleFunc("PUT /api/admin/todos/{id}", adminMw(adminHandler.UpdateAdminTodo))
-	mux.HandleFunc("DELETE /api/admin/todos/{id}", adminMw(adminHandler.DeleteAdminTodo))
-	mux.HandleFunc("GET /api/admin/users/{userId}/todos", adminMw(adminHandler.ListUserTodos))
-	mux.HandleFunc("POST /api/admin/users/{userId}/todos", adminMw(adminHandler.CreateUserTodo))
-	mux.HandleFunc("PUT /api/admin/users/{userId}/todos/{todoId}", adminMw(adminHandler.UpdateUserTodo))
-	mux.HandleFunc("DELETE /api/admin/users/{userId}/todos/{todoId}", adminMw(adminHandler.DeleteUserTodo))
+	adminHandler.RegisterRoutes(mux, adminMw)
 
 	// Serve static frontend files
 	// Try multiple paths for different deployment scenarios

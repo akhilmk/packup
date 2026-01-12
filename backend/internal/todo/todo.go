@@ -22,12 +22,12 @@ func NewHandler(db *pgxpool.Pool) *Handler {
 }
 
 // RegisterRoutes registers the specific routes to a mux using Go 1.22 enhanced routing
-func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("GET /api/todos", h.List)
-	mux.HandleFunc("POST /api/todos", h.Create)
-	mux.HandleFunc("PUT /api/todos/{id}", h.Update)
-	mux.HandleFunc("PUT /api/todos/reorder", h.Reorder)
-	mux.HandleFunc("DELETE /api/todos/{id}", h.Delete)
+func (h *Handler) RegisterRoutes(mux *http.ServeMux, middleware func(http.HandlerFunc) http.HandlerFunc) {
+	mux.HandleFunc("GET /api/todos", middleware(h.List))
+	mux.HandleFunc("POST /api/todos", middleware(h.Create))
+	mux.HandleFunc("PUT /api/todos/{id}", middleware(h.Update))
+	mux.HandleFunc("PUT /api/todos/reorder", middleware(h.Reorder))
+	mux.HandleFunc("DELETE /api/todos/{id}", middleware(h.Delete))
 }
 
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {

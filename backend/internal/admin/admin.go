@@ -21,6 +21,19 @@ func NewHandler(db *pgxpool.Pool) *Handler {
 	return &Handler{db: db}
 }
 
+// RegisterRoutes registers the admin routes to a mux using Go 1.22 enhanced routing
+func (h *Handler) RegisterRoutes(mux *http.ServeMux, adminMiddleware func(http.HandlerFunc) http.HandlerFunc) {
+	mux.HandleFunc("GET /api/admin/users", adminMiddleware(h.ListUsers))
+	mux.HandleFunc("GET /api/admin/todos", adminMiddleware(h.ListAdminTodos))
+	mux.HandleFunc("POST /api/admin/todos", adminMiddleware(h.CreateAdminTodo))
+	mux.HandleFunc("PUT /api/admin/todos/{id}", adminMiddleware(h.UpdateAdminTodo))
+	mux.HandleFunc("DELETE /api/admin/todos/{id}", adminMiddleware(h.DeleteAdminTodo))
+	mux.HandleFunc("GET /api/admin/users/{userId}/todos", adminMiddleware(h.ListUserTodos))
+	mux.HandleFunc("POST /api/admin/users/{userId}/todos", adminMiddleware(h.CreateUserTodo))
+	mux.HandleFunc("PUT /api/admin/users/{userId}/todos/{todoId}", adminMiddleware(h.UpdateUserTodo))
+	mux.HandleFunc("DELETE /api/admin/users/{userId}/todos/{todoId}", adminMiddleware(h.DeleteUserTodo))
+}
+
 // Middleware to check if user is admin
 func (h *Handler) RequireAdmin(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
