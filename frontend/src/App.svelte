@@ -46,6 +46,9 @@
             <img src={user.avatar_url} alt={user.name} class="w-8 h-8 rounded-full border border-indigo-100" />
           {/if}
           <span class="text-sm font-bold text-slate-700 hidden sm:block">{user.name}</span>
+          {#if user.role === 'admin'}
+            <span class="text-[10px] font-bold tracking-wider text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100 uppercase">Admin</span>
+          {/if}
         </div>
         
         <button 

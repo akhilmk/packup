@@ -22,6 +22,7 @@ type User struct {
 	Email     string    `json:"email"`
 	Name      string    `json:"name"`
 	AvatarURL string    `json:"avatar_url"`
+	Role      string    `json:"role"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
@@ -154,8 +155,44 @@ func (h *Handler) Middleware(next http.HandlerFunc) http.HandlerFunc {
 		}
 
 		ctx := context.WithValue(r.Context(), "user_id", user.ID)
+		ctx = context.WithValue(ctx, "user_role", user.Role)
 		next(w, r.WithContext(ctx))
 	}
+}
+
+// Helper function to determine user role based on admin emails
+func determineUserRole(email string) string {
+	adminEmails := os.Getenv("ADMIN_EMAILS")
+	if adminEmails == "" {
+		return "user"
+	}
+
+	// Parse comma-separated admin emails
+	emails := []string{}
+	for _, e := range []byte(adminEmails) {
+		if e == ',' {
+			emails = append(emails, "")
+		} else if len(emails) == 0 {
+			emails = append(emails, string(e))
+		} else {
+			emails[len(emails)-1] += string(e)
+		}
+	}
+
+	// Trim spaces and check if email matches
+	for _, adminEmail := range emails {
+		trimmed := ""
+		for _, c := range adminEmail {
+			if c != ' ' && c != '\t' && c != '\n' && c != '\r' {
+				trimmed += string(c)
+			}
+		}
+		if trimmed == email {
+			return "admin"
+		}
+	}
+
+	return "user"
 }
 
 // Helpers
@@ -220,10 +257,13 @@ func (h *Handler) getGoogleUser(token string) (googleUser, error) {
 func (h *Handler) getOrCreateUser(ctx context.Context, gu googleUser) (User, error) {
 	var user User
 	// Check if exists
-	err := h.db.QueryRow(ctx, "SELECT id, google_id, email, name, avatar_url, created_at FROM users WHERE google_id=$1", gu.ID).
-		Scan(&user.ID, &user.GoogleID, &user.Email, &user.Name, &user.AvatarURL, &user.CreatedAt)
+	err := h.db.QueryRow(ctx, "SELECT id, google_id, email, name, avatar_url, role, created_at FROM users WHERE google_id=$1", gu.ID).
+		Scan(&user.ID, &user.GoogleID, &user.Email, &user.Name, &user.AvatarURL, &user.Role, &user.CreatedAt)
 
 	if err == pgx.ErrNoRows {
+		// Determine role based on admin emails
+		role := determineUserRole(gu.Email)
+
 		// Create
 		user = User{
 			ID:        uuid.NewString(),
@@ -231,10 +271,18 @@ func (h *Handler) getOrCreateUser(ctx context.Context, gu googleUser) (User, err
 			Email:     gu.Email,
 			Name:      gu.Name,
 			AvatarURL: gu.Picture,
+			Role:      role,
 			CreatedAt: time.Now(),
 		}
-		_, err = h.db.Exec(ctx, "INSERT INTO users(id, google_id, email, name, avatar_url, created_at) VALUES($1,$2,$3,$4,$5,$6)",
-			user.ID, user.GoogleID, user.Email, user.Name, user.AvatarURL, user.CreatedAt)
+		_, err = h.db.Exec(ctx, "INSERT INTO users(id, google_id, email, name, avatar_url, role, created_at) VALUES($1,$2,$3,$4,$5,$6,$7)",
+			user.ID, user.GoogleID, user.Email, user.Name, user.AvatarURL, user.Role, user.CreatedAt)
+	} else if err == nil {
+		// Update role if it changed (in case admin emails were updated)
+		newRole := determineUserRole(gu.Email)
+		if newRole != user.Role {
+			user.Role = newRole
+			_, _ = h.db.Exec(ctx, "UPDATE users SET role=$1 WHERE id=$2", user.Role, user.ID)
+		}
 	}
 
 	return user, err
@@ -253,11 +301,11 @@ func (h *Handler) createSession(ctx context.Context, userID string) (string, err
 func (h *Handler) getUserBySession(ctx context.Context, token string) (User, error) {
 	var user User
 	err := h.db.QueryRow(ctx, `
-		SELECT u.id, u.google_id, u.email, u.name, u.avatar_url, u.created_at 
+		SELECT u.id, u.google_id, u.email, u.name, u.avatar_url, u.role, u.created_at 
 		FROM sessions s
 		JOIN users u ON s.user_id = u.id
 		WHERE s.token = $1 AND s.expires_at > now()
-	`, token).Scan(&user.ID, &user.GoogleID, &user.Email, &user.Name, &user.AvatarURL, &user.CreatedAt)
+	`, token).Scan(&user.ID, &user.GoogleID, &user.Email, &user.Name, &user.AvatarURL, &user.Role, &user.CreatedAt)
 
 	return user, err
 }

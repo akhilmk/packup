@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS users (
     email TEXT UNIQUE NOT NULL,
     name TEXT,
     avatar_url TEXT,
+    role VARCHAR(20) NOT NULL DEFAULT 'user',
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -23,5 +24,10 @@ CREATE TABLE IF NOT EXISTS todos (
     status VARCHAR(20) NOT NULL DEFAULT 'pending',
     created TIMESTAMPTZ NOT NULL DEFAULT now(),
     position DOUBLE PRECISION NOT NULL DEFAULT 0,
-    user_id TEXT REFERENCES users(id) ON DELETE CASCADE
+    user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+    created_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+    is_admin_todo BOOLEAN NOT NULL DEFAULT false
 );
+
+-- Create index for efficient querying of admin todos
+CREATE INDEX IF NOT EXISTS idx_todos_admin ON todos(is_admin_todo) WHERE is_admin_todo = true;

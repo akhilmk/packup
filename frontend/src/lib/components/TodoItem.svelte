@@ -115,6 +115,16 @@
       on:dblclick={() => (isEditing = true)}
     >
       {todo.text}
+      {#if todo.is_admin_todo}
+        <span class="inline-flex items-center ml-2 text-[10px] font-bold tracking-wider text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-100 uppercase align-middle transform -translate-y-0.5 gap-1 shadow-sm">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+            <path d="M2 17l10 5 10-5"></path>
+            <path d="M2 12l10 5 10-5"></path>
+          </svg>
+          Admin Task
+        </span>
+      {/if}
       {#if todo.status === 'in-progress'}
         <span class="inline-flex items-center ml-2 text-[10px] font-bold tracking-wider text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100 uppercase align-middle transform -translate-y-0.5 gap-1 shadow-sm">
           <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 animate-spin" style="animation-duration: 3s;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -142,8 +152,12 @@
       </button>
       <button 
         on:click={deleteTodo} 
-        class="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
-        title="Delete task"
+        disabled={todo.is_admin_todo}
+        class="p-2 transition-all rounded-lg
+               {todo.is_admin_todo 
+                 ? 'text-slate-300 cursor-not-allowed' 
+                 : 'text-slate-400 hover:text-red-500 hover:bg-red-50'}"
+        title={todo.is_admin_todo ? "Admin tasks cannot be deleted" : "Delete task"}
         aria-label="Delete task"
       >
         <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

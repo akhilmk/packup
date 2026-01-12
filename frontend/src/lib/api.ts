@@ -8,6 +8,8 @@ export interface Todo {
     text: string;
     status: TodoStatus;
     position?: number;
+    is_admin_todo?: boolean;
+    created_by_user_id?: string;
 }
 
 interface ListTodosResponse {
@@ -95,4 +97,5 @@ export interface User {
     email: string;
     name: string;
     avatar_url: string;
+    role: 'admin' | 'user';
 }

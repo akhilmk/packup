@@ -10,11 +10,13 @@ import (
 )
 
 type Todo struct {
-	ID       string    `json:"id"`
-	Text     string    `json:"text"`
-	Status   string    `json:"status"`
-	Created  time.Time `json:"created"`
-	Position float64   `json:"position"`
+	ID              string    `json:"id"`
+	Text            string    `json:"text"`
+	Status          string    `json:"status"`
+	Created         time.Time `json:"created"`
+	Position        float64   `json:"position"`
+	CreatedByUserID *string   `json:"created_by_user_id,omitempty"`
+	IsAdminTodo     bool      `json:"is_admin_todo"`
 }
 
 type Handler struct {
@@ -41,7 +43,14 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rows, err := h.db.Query(r.Context(), `SELECT id, text, status, created, position FROM todos WHERE user_id=$1 ORDER BY position ASC, created DESC LIMIT 100`, userID)
+	// Return user's own todos + all admin todos
+	rows, err := h.db.Query(r.Context(), `
+		SELECT id, text, status, created, position, created_by_user_id, is_admin_todo 
+		FROM todos 
+		WHERE user_id=$1 OR is_admin_todo=true 
+		ORDER BY position ASC, created DESC 
+		LIMIT 100
+	`, userID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -51,7 +60,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	var todos []Todo
 	for rows.Next() {
 		var t Todo
-		if err := rows.Scan(&t.ID, &t.Text, &t.Status, &t.Created, &t.Position); err != nil {
+		if err := rows.Scan(&t.ID, &t.Text, &t.Status, &t.Created, &t.Position, &t.CreatedByUserID, &t.IsAdminTodo); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -74,6 +83,8 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	userRole, _ := r.Context().Value("user_role").(string)
+
 	var req struct {
 		Text string `json:"text"`
 	}
@@ -92,24 +103,58 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	id := uuid.NewString()
-	// Default status is 'pending'
 	status := "pending"
 	created := time.Now()
 
-	// Get min position to put at top (for this user)
+	// Determine if this is an admin todo
+	isAdminTodo := userRole == "admin"
+
+	// Get min position to put at top
 	var minPos float64
-	_ = h.db.QueryRow(r.Context(), `SELECT COALESCE(MIN(position), 0) FROM todos WHERE user_id=$1`, userID).Scan(&minPos)
+	if isAdminTodo {
+		// For admin todos, get global min position
+		_ = h.db.QueryRow(r.Context(), `SELECT COALESCE(MIN(position), 0) FROM todos`).Scan(&minPos)
+	} else {
+		// For user todos, get min position for this user
+		_ = h.db.QueryRow(r.Context(), `SELECT COALESCE(MIN(position), 0) FROM todos WHERE user_id=$1`, userID).Scan(&minPos)
+	}
 	position := minPos - 1024.0
 
-	_, err := h.db.Exec(r.Context(), `INSERT INTO todos(id, text, status, created, position, user_id) VALUES($1,$2,$3,$4,$5,$6)`, id, req.Text, status, created, position, userID)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+	// Insert todo
+	if isAdminTodo {
+		// Admin todo: set is_admin_todo=true, created_by_user_id=userID, user_id=NULL
+		_, err := h.db.Exec(r.Context(), `
+			INSERT INTO todos(id, text, status, created, position, created_by_user_id, is_admin_todo, user_id) 
+			VALUES($1,$2,$3,$4,$5,$6,$7,NULL)
+		`, id, req.Text, status, created, position, userID, true)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	} else {
+		// Regular user todo
+		_, err := h.db.Exec(r.Context(), `
+			INSERT INTO todos(id, text, status, created, position, user_id, created_by_user_id, is_admin_todo) 
+			VALUES($1,$2,$3,$4,$5,$6,$7,$8)
+		`, id, req.Text, status, created, position, userID, userID, false)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
 
+	createdByUserID := userID
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(Todo{ID: id, Text: req.Text, Status: status, Created: created, Position: position})
+	json.NewEncoder(w).Encode(Todo{
+		ID:              id,
+		Text:            req.Text,
+		Status:          status,
+		Created:         created,
+		Position:        position,
+		CreatedByUserID: &createdByUserID,
+		IsAdminTodo:     isAdminTodo,
+	})
 }
 
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
@@ -150,23 +195,35 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Check existence and ownership
-	var exists bool
-	err := h.db.QueryRow(r.Context(), `SELECT EXISTS(SELECT 1 FROM todos WHERE id=$1 AND user_id=$2)`, id, userID).Scan(&exists)
+	// Check if todo exists and if user can update it
+	var isAdminTodo bool
+	var todoUserID *string
+	err := h.db.QueryRow(r.Context(), `
+		SELECT is_admin_todo, user_id 
+		FROM todos 
+		WHERE id=$1
+	`, id).Scan(&isAdminTodo, &todoUserID)
+
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	if !exists {
 		http.Error(w, "todo not found", http.StatusNotFound)
 		return
 	}
 
+	// Users can update:
+	// 1. Their own todos (user_id matches)
+	// 2. Admin todos (is_admin_todo=true)
+	canUpdate := isAdminTodo || (todoUserID != nil && *todoUserID == userID)
+	if !canUpdate {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+
+	// Update the todo
 	_, err = h.db.Exec(r.Context(), `
 		UPDATE todos 
 		SET text = CASE WHEN $2 = '' THEN text ELSE $2 END, 
 		    status = CASE WHEN $3 = '' THEN status ELSE $3 END 
-		WHERE id=$1 AND user_id=$4`, id, req.Text, req.Status, userID)
+		WHERE id=$1`, id, req.Text, req.Status)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -174,7 +231,11 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var t Todo
-	if err := h.db.QueryRow(r.Context(), `SELECT id, text, status, created FROM todos WHERE id=$1`, id).Scan(&t.ID, &t.Text, &t.Status, &t.Created); err != nil {
+	if err := h.db.QueryRow(r.Context(), `
+		SELECT id, text, status, created, position, created_by_user_id, is_admin_todo 
+		FROM todos 
+		WHERE id=$1
+	`, id).Scan(&t.ID, &t.Text, &t.Status, &t.Created, &t.Position, &t.CreatedByUserID, &t.IsAdminTodo); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -211,8 +272,12 @@ func (h *Handler) Reorder(w http.ResponseWriter, r *http.Request) {
 
 	for i, id := range req.IDs {
 		pos := float64(i) * 1024.0
-		// Ensure we only update if it belongs to user
-		_, err := tx.Exec(r.Context(), `UPDATE todos SET position = $1 WHERE id = $2 AND user_id = $3`, pos, id, userID)
+		// Update position for todos that belong to user OR are admin todos
+		_, err := tx.Exec(r.Context(), `
+			UPDATE todos 
+			SET position = $1 
+			WHERE id = $2 AND (user_id = $3 OR is_admin_todo = true)
+		`, pos, id, userID)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -235,13 +300,41 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	userRole, _ := r.Context().Value("user_role").(string)
+
 	id := r.PathValue("id")
 	if id == "" {
 		http.Error(w, "id required", http.StatusBadRequest)
 		return
 	}
 
-	cmd, err := h.db.Exec(r.Context(), `DELETE FROM todos WHERE id=$1 AND user_id=$2`, id, userID)
+	// Check if todo is an admin todo
+	var isAdminTodo bool
+	var todoUserID *string
+	err := h.db.QueryRow(r.Context(), `
+		SELECT is_admin_todo, user_id 
+		FROM todos 
+		WHERE id=$1
+	`, id).Scan(&isAdminTodo, &todoUserID)
+
+	if err != nil {
+		http.Error(w, "todo not found", http.StatusNotFound)
+		return
+	}
+
+	// Only admins can delete admin todos
+	if isAdminTodo && userRole != "admin" {
+		http.Error(w, "forbidden: only admins can delete admin todos", http.StatusForbidden)
+		return
+	}
+
+	// Regular users can only delete their own todos
+	if !isAdminTodo && (todoUserID == nil || *todoUserID != userID) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+
+	cmd, err := h.db.Exec(r.Context(), `DELETE FROM todos WHERE id=$1`, id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
