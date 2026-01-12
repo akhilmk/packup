@@ -117,13 +117,20 @@ export const api = {
         return data.todos;
     },
 
-    async updateUserTodo(userId: string, todoId: string, updates: { status?: TodoStatus; hidden_from_user?: boolean }): Promise<void> {
+    async updateUserTodo(userId: string, todoId: string, updates: { text?: string; status?: TodoStatus; hidden_from_user?: boolean }): Promise<void> {
         const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/todos/${todoId}`, {
             method: "PUT",
             headers: {
                 "Content-Type": "application/json",
             },
             body: JSON.stringify(updates),
+        });
+        await handleResponse<{ success: boolean }>(response);
+    },
+
+    async deleteUserTodo(userId: string, todoId: string): Promise<void> {
+        const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/todos/${todoId}`, {
+            method: "DELETE",
         });
         await handleResponse<{ success: boolean }>(response);
     },

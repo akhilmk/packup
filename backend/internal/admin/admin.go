@@ -2,34 +2,16 @@ package admin
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
+	"github.com/akhilmk/itinera/internal/auth"
+	"github.com/akhilmk/itinera/internal/httputil"
+	"github.com/akhilmk/itinera/internal/models"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
-
-type User struct {
-	ID        string    `json:"id"`
-	Email     string    `json:"email"`
-	Name      string    `json:"name"`
-	AvatarURL string    `json:"avatar_url"`
-	Role      string    `json:"role"`
-	CreatedAt time.Time `json:"created_at"`
-}
-
-type Todo struct {
-	ID              string    `json:"id"`
-	Text            string    `json:"text"`
-	Status          string    `json:"status"`
-	Created         time.Time `json:"created"`
-	Position        float64   `json:"position"`
-	CreatedByUserID *string   `json:"created_by_user_id,omitempty"`
-	IsDefaultTask   bool      `json:"is_default_task"`
-	SharedWithAdmin bool      `json:"shared_with_admin"`
-	UserID          *string   `json:"user_id,omitempty"`
-	HiddenFromUser  bool      `json:"hidden_from_user"`
-}
 
 type Handler struct {
 	db *pgxpool.Pool
@@ -42,9 +24,8 @@ func NewHandler(db *pgxpool.Pool) *Handler {
 // Middleware to check if user is admin
 func (h *Handler) RequireAdmin(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		userRole, ok := r.Context().Value("user_role").(string)
-		if !ok || userRole != "admin" {
-			http.Error(w, "forbidden: admin access required", http.StatusForbidden)
+		if !auth.IsAdmin(r.Context()) {
+			httputil.Forbidden(w, "forbidden: admin access required")
 			return
 		}
 		next(w, r)
@@ -61,27 +42,26 @@ func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
 		ORDER BY created_at DESC
 	`)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		httputil.InternalError(w, err.Error())
 		return
 	}
 	defer rows.Close()
 
-	var users []User
+	var users []models.User
 	for rows.Next() {
-		var u User
+		var u models.User
 		if err := rows.Scan(&u.ID, &u.Email, &u.Name, &u.AvatarURL, &u.Role, &u.CreatedAt); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			httputil.InternalError(w, err.Error())
 			return
 		}
 		users = append(users, u)
 	}
 
 	if users == nil {
-		users = []User{}
+		users = []models.User{}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]any{"users": users})
+	httputil.WriteJSON(w, map[string]any{"users": users}, http.StatusOK)
 }
 
 // ListAdminTodos returns all admin todos (admin only)
@@ -93,34 +73,33 @@ func (h *Handler) ListAdminTodos(w http.ResponseWriter, r *http.Request) {
 		ORDER BY position ASC, created DESC
 	`)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		httputil.InternalError(w, err.Error())
 		return
 	}
 	defer rows.Close()
 
-	var todos []Todo
+	var todos []models.Todo
 	for rows.Next() {
-		var t Todo
+		var t models.Todo
 		if err := rows.Scan(&t.ID, &t.Text, &t.Status, &t.Created, &t.Position, &t.CreatedByUserID, &t.IsDefaultTask, &t.SharedWithAdmin); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			httputil.InternalError(w, err.Error())
 			return
 		}
 		todos = append(todos, t)
 	}
 
 	if todos == nil {
-		todos = []Todo{}
+		todos = []models.Todo{}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]any{"todos": todos})
+	httputil.WriteJSON(w, map[string]any{"todos": todos}, http.StatusOK)
 }
 
 // CreateAdminTodo creates a new admin todo (admin only)
 func (h *Handler) CreateAdminTodo(w http.ResponseWriter, r *http.Request) {
-	userID, ok := r.Context().Value("user_id").(string)
+	userID, ok := auth.GetUserID(r.Context())
 	if !ok {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		httputil.Unauthorized(w)
 		return
 	}
 
@@ -128,27 +107,23 @@ func (h *Handler) CreateAdminTodo(w http.ResponseWriter, r *http.Request) {
 		Text string `json:"text"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid json", http.StatusBadRequest)
+		httputil.BadRequest(w, "invalid json")
 		return
 	}
 
-	if len(req.Text) > 200 {
-		http.Error(w, "text limit of 200 characters exceeded", http.StatusBadRequest)
-		return
-	}
-	if req.Text == "" {
-		http.Error(w, "text cannot be empty", http.StatusBadRequest)
+	if !models.ValidateText(req.Text) {
+		httputil.BadRequest(w, fmt.Sprintf("text cannot be empty or exceed %d characters", models.MaxTextLength))
 		return
 	}
 
 	id := uuid.NewString()
-	status := "pending"
+	status := string(models.StatusPending)
 	created := time.Now()
 
 	// Get min position to put at top
 	var minPos float64
 	_ = h.db.QueryRow(r.Context(), `SELECT COALESCE(MIN(position), 0) FROM todos WHERE is_default_task=true`).Scan(&minPos)
-	position := minPos - 1024.0
+	position := minPos - models.PositionIncrement
 
 	// Insert admin todo (default task)
 	_, err := h.db.Exec(r.Context(), `
@@ -156,14 +131,12 @@ func (h *Handler) CreateAdminTodo(w http.ResponseWriter, r *http.Request) {
 		VALUES($1,$2,$3,$4,$5,$6,$7,NULL,$8)
 	`, id, req.Text, status, created, position, userID, true, false) // SharedWithAdmin is irrelevant for default tasks but defaulting to false
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		httputil.InternalError(w, err.Error())
 		return
 	}
 
 	createdByUserID := userID
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(Todo{
+	httputil.WriteJSON(w, models.Todo{
 		ID:              id,
 		Text:            req.Text,
 		Status:          status,
@@ -172,14 +145,14 @@ func (h *Handler) CreateAdminTodo(w http.ResponseWriter, r *http.Request) {
 		CreatedByUserID: &createdByUserID,
 		IsDefaultTask:   true,
 		SharedWithAdmin: false,
-	})
+	}, http.StatusCreated)
 }
 
 // UpdateAdminTodo updates an admin todo's text (admin only)
 func (h *Handler) UpdateAdminTodo(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
-		http.Error(w, "id required", http.StatusBadRequest)
+		httputil.BadRequest(w, "id required")
 		return
 	}
 
@@ -187,12 +160,12 @@ func (h *Handler) UpdateAdminTodo(w http.ResponseWriter, r *http.Request) {
 		Text string `json:"text"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid json", http.StatusBadRequest)
+		httputil.BadRequest(w, "invalid json")
 		return
 	}
 
-	if req.Text != "" && len(req.Text) > 200 {
-		http.Error(w, "text limit of 200 characters exceeded", http.StatusBadRequest)
+	if req.Text != "" && !models.ValidateText(req.Text) {
+		httputil.BadRequest(w, fmt.Sprintf("text limit of %d characters exceeded", models.MaxTextLength))
 		return
 	}
 
@@ -211,30 +184,29 @@ func (h *Handler) UpdateAdminTodo(w http.ResponseWriter, r *http.Request) {
 	// Update text only
 	_, err = h.db.Exec(r.Context(), `UPDATE todos SET text = $1 WHERE id = $2`, req.Text, id)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		httputil.InternalError(w, err.Error())
 		return
 	}
 
 	// Fetch and return updated todo
-	var t Todo
+	var t models.Todo
 	if err := h.db.QueryRow(r.Context(), `
 		SELECT id, text, status, created, position, created_by_user_id, is_default_task, shared_with_admin
 		FROM todos 
 		WHERE id=$1
 	`, id).Scan(&t.ID, &t.Text, &t.Status, &t.Created, &t.Position, &t.CreatedByUserID, &t.IsDefaultTask, &t.SharedWithAdmin); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		httputil.InternalError(w, err.Error())
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(t)
+	httputil.WriteJSON(w, t, http.StatusOK)
 }
 
 // DeleteAdminTodo deletes an admin todo (admin only)
 func (h *Handler) DeleteAdminTodo(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
-		http.Error(w, "id required", http.StatusBadRequest)
+		httputil.BadRequest(w, "id required")
 		return
 	}
 
@@ -242,34 +214,33 @@ func (h *Handler) DeleteAdminTodo(w http.ResponseWriter, r *http.Request) {
 	var isDefaultTask bool
 	err := h.db.QueryRow(r.Context(), `SELECT is_default_task FROM todos WHERE id=$1`, id).Scan(&isDefaultTask)
 	if err != nil {
-		http.Error(w, "todo not found", http.StatusNotFound)
+		httputil.NotFound(w, "todo not found")
 		return
 	}
 	if !isDefaultTask {
-		http.Error(w, "not a default task", http.StatusBadRequest)
+		httputil.BadRequest(w, "not a default task")
 		return
 	}
 
 	// Delete the todo
 	cmd, err := h.db.Exec(r.Context(), `DELETE FROM todos WHERE id=$1`, id)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		httputil.InternalError(w, err.Error())
 		return
 	}
 	if cmd.RowsAffected() == 0 {
-		http.Error(w, "todo not found", http.StatusNotFound)
+		httputil.NotFound(w, "todo not found")
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"success":true}`))
+	httputil.WriteSuccess(w)
 }
 
 // ListUserTodos returns all todos for a specific user (admin only)
 func (h *Handler) ListUserTodos(w http.ResponseWriter, r *http.Request) {
 	userID := r.PathValue("userId")
 	if userID == "" {
-		http.Error(w, "userId required", http.StatusBadRequest)
+		httputil.BadRequest(w, "userId required")
 		return
 	}
 
@@ -310,40 +281,39 @@ func (h *Handler) ListUserTodos(w http.ResponseWriter, r *http.Request) {
 		ORDER BY position ASC, created DESC
 	`, userID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		httputil.InternalError(w, err.Error())
 		return
 	}
 	defer rows.Close()
 
-	var todos []Todo
+	var todos []models.Todo
 	for rows.Next() {
-		var t Todo
+		var t models.Todo
 		if err := rows.Scan(&t.ID, &t.Text, &t.Status, &t.Created, &t.Position, &t.CreatedByUserID, &t.IsDefaultTask, &t.SharedWithAdmin, &t.UserID, &t.HiddenFromUser); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			httputil.InternalError(w, err.Error())
 			return
 		}
 		todos = append(todos, t)
 	}
 
 	if todos == nil {
-		todos = []Todo{}
+		todos = []models.Todo{}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]any{"todos": todos})
+	httputil.WriteJSON(w, map[string]any{"todos": todos}, http.StatusOK)
 }
 
 // CreateUserTodo creates a new todo for a specific user (admin only)
 func (h *Handler) CreateUserTodo(w http.ResponseWriter, r *http.Request) {
 	userId := r.PathValue("userId")
 	if userId == "" {
-		http.Error(w, "userId required", http.StatusBadRequest)
+		httputil.BadRequest(w, "userId required")
 		return
 	}
 
-	adminID, ok := r.Context().Value("user_id").(string)
+	adminID, ok := auth.GetUserID(r.Context())
 	if !ok {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		httputil.Unauthorized(w)
 		return
 	}
 
@@ -352,27 +322,23 @@ func (h *Handler) CreateUserTodo(w http.ResponseWriter, r *http.Request) {
 		HiddenFromUser bool   `json:"hidden_from_user"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid json", http.StatusBadRequest)
+		httputil.BadRequest(w, "invalid json")
 		return
 	}
 
-	if len(req.Text) > 200 {
-		http.Error(w, "text limit of 200 characters exceeded", http.StatusBadRequest)
-		return
-	}
-	if req.Text == "" {
-		http.Error(w, "text cannot be empty", http.StatusBadRequest)
+	if !models.ValidateText(req.Text) {
+		httputil.BadRequest(w, fmt.Sprintf("text cannot be empty or exceed %d characters", models.MaxTextLength))
 		return
 	}
 
 	id := uuid.NewString()
-	status := "pending"
+	status := string(models.StatusPending)
 	created := time.Now()
 
 	// Get min position for this user to put at top
 	var minPos float64
 	_ = h.db.QueryRow(r.Context(), `SELECT COALESCE(MIN(position), 0) FROM todos WHERE user_id=$1`, userId).Scan(&minPos)
-	position := minPos - 1024.0
+	position := minPos - models.PositionIncrement
 
 	// Insert todo for user, created by admin
 	_, err := h.db.Exec(r.Context(), `
@@ -381,14 +347,12 @@ func (h *Handler) CreateUserTodo(w http.ResponseWriter, r *http.Request) {
 	`, id, req.Text, status, created, position, userId, adminID, false, true, req.HiddenFromUser)
 
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		httputil.InternalError(w, err.Error())
 		return
 	}
 
 	createdByUserID := adminID
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(Todo{
+	httputil.WriteJSON(w, models.Todo{
 		ID:              id,
 		Text:            req.Text,
 		Status:          status,
@@ -399,7 +363,7 @@ func (h *Handler) CreateUserTodo(w http.ResponseWriter, r *http.Request) {
 		SharedWithAdmin: true,
 		HiddenFromUser:  req.HiddenFromUser,
 		UserID:          &userId,
-	})
+	}, http.StatusCreated)
 }
 
 // UpdateUserTodo updates a specific user's todo status (admin only)
@@ -407,16 +371,17 @@ func (h *Handler) UpdateUserTodo(w http.ResponseWriter, r *http.Request) {
 	userID := r.PathValue("userId")
 	todoID := r.PathValue("todoId")
 	if userID == "" || todoID == "" {
-		http.Error(w, "userId and todoId required", http.StatusBadRequest)
+		httputil.BadRequest(w, "userId and todoId required")
 		return
 	}
 
 	var req struct {
+		Text           *string `json:"text,omitempty"`
 		Status         *string `json:"status,omitempty"`
 		HiddenFromUser *bool   `json:"hidden_from_user,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid json", http.StatusBadRequest)
+		httputil.BadRequest(w, "invalid json")
 		return
 	}
 
@@ -424,15 +389,16 @@ func (h *Handler) UpdateUserTodo(w http.ResponseWriter, r *http.Request) {
 	var exists bool
 	err := h.db.QueryRow(r.Context(), `SELECT EXISTS(SELECT 1 FROM users WHERE id=$1)`, userID).Scan(&exists)
 	if err != nil || !exists {
-		http.Error(w, "user not found", http.StatusNotFound)
+		httputil.NotFound(w, "user not found")
 		return
 	}
 
 	// Check if todo is a default task
 	var isDefaultTask bool
-	err = h.db.QueryRow(r.Context(), `SELECT is_default_task FROM todos WHERE id=$1`, todoID).Scan(&isDefaultTask)
+	var createdByUserID *string
+	err = h.db.QueryRow(r.Context(), `SELECT is_default_task, created_by_user_id FROM todos WHERE id=$1`, todoID).Scan(&isDefaultTask, &createdByUserID)
 	if err != nil {
-		http.Error(w, "todo not found", http.StatusNotFound)
+		httputil.NotFound(w, "todo not found")
 		return
 	}
 
@@ -459,31 +425,96 @@ func (h *Handler) UpdateUserTodo(w http.ResponseWriter, r *http.Request) {
 			`, userID, todoID, *req.Status)
 
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				httputil.InternalError(w, err.Error())
 				return
 			}
 		}
 	} else {
 		// Personal / Admin-Assigned User Task
-		// Allow updating hidden_from_user status
+		// Allow updating hidden_from_user status and text (for admin-created tasks only)
 		if req.HiddenFromUser != nil {
 			_, err = h.db.Exec(r.Context(), `UPDATE todos SET hidden_from_user = $1 WHERE id = $2`, *req.HiddenFromUser, todoID)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				httputil.InternalError(w, err.Error())
 				return
 			}
 		}
 
-		if req.Status != nil {
-			// Admins technically can change status of admin-assigned tasks, but maybe not personal ones?
-			// User requirement: "admin can open todos of customer and can add a new customer specific todo ... by default this is shared ... option to hide"
-			// Doesn't strictly say admin can update status of these tasks, but let's assume if they created it they might want to.
-			// But earlier requirement said "admin can change status of default task, not shared task".
-			// So safely, likely READ-ONLY for status of personal/user tasks.
-			// However, if we need to "hide" a shared task, that's what we just did above.
+		// Allow text update only for admin-created tasks (where created_by != user_id)
+		if req.Text != nil {
+			// Check if admin created this task (created_by_user_id != user_id means admin created it)
+			if createdByUserID != nil && *createdByUserID != userID {
+				if !models.ValidateText(*req.Text) {
+					httputil.BadRequest(w, fmt.Sprintf("text cannot be empty or exceed %d characters", models.MaxTextLength))
+					return
+				}
+				_, err = h.db.Exec(r.Context(), `UPDATE todos SET text = $1 WHERE id = $2`, *req.Text, todoID)
+				if err != nil {
+					httputil.InternalError(w, err.Error())
+					return
+				}
+			} else {
+				httputil.Forbidden(w, "cannot edit text of user-created tasks")
+				return
+			}
 		}
 	}
 
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"success":true}`))
+	httputil.WriteSuccess(w)
+}
+
+// DeleteUserTodo deletes a user-specific todo that was created by an admin (admin only)
+func (h *Handler) DeleteUserTodo(w http.ResponseWriter, r *http.Request) {
+	userID := r.PathValue("userId")
+	todoID := r.PathValue("todoId")
+	if userID == "" || todoID == "" {
+		httputil.BadRequest(w, "userId and todoId required")
+		return
+	}
+
+	// Check if todo exists and verify it's an admin-created task for this user
+	var isDefaultTask bool
+	var todoUserID *string
+	var createdByUserID *string
+	err := h.db.QueryRow(r.Context(), `
+		SELECT is_default_task, user_id, created_by_user_id 
+		FROM todos 
+		WHERE id=$1
+	`, todoID).Scan(&isDefaultTask, &todoUserID, &createdByUserID)
+
+	if err != nil {
+		httputil.NotFound(w, "todo not found")
+		return
+	}
+
+	// Cannot delete default tasks through this endpoint
+	if isDefaultTask {
+		httputil.BadRequest(w, "use the default task endpoint to delete default tasks")
+		return
+	}
+
+	// Verify the todo belongs to the specified user
+	if todoUserID == nil || *todoUserID != userID {
+		httputil.Forbidden(w, "todo does not belong to this user")
+		return
+	}
+
+	// Only allow deleting admin-created tasks (created_by != user_id)
+	if createdByUserID == nil || *createdByUserID == userID {
+		httputil.Forbidden(w, "can only delete admin-created tasks")
+		return
+	}
+
+	// Delete the todo
+	cmd, err := h.db.Exec(r.Context(), `DELETE FROM todos WHERE id=$1`, todoID)
+	if err != nil {
+		httputil.InternalError(w, err.Error())
+		return
+	}
+	if cmd.RowsAffected() == 0 {
+		httputil.NotFound(w, "todo not found")
+		return
+	}
+
+	httputil.WriteSuccess(w)
 }

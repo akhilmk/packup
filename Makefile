@@ -4,7 +4,18 @@ IMAGE_NAME := itinera
 
 .PHONY: db-up db-down db-logs db-shell frontend-install frontend-build \
         build-backend build-frontend build-all docker-build docker-run docker-stop \
-        docker-logs docker-clean release clean help
+        docker-logs docker-clean release clean help test
+
+# Test commands
+test:
+	@echo "Running backend tests..."
+	cd backend && go test -v ./...
+
+test-coverage:
+	@echo "Running backend tests with coverage..."
+	cd backend && go test -coverprofile=coverage.out ./...
+	cd backend && go tool cover -html=coverage.out -o coverage.html
+	@echo "✓ Coverage report: backend/coverage.html"
 
 # Database commands
 db-up:
@@ -106,6 +117,9 @@ help:
 	@echo "  make db-down         - Stop PostgreSQL database"
 	@echo "  make db-logs         - View database logs"
 	@echo "  make db-shell        - Open psql shell"
+	@echo ""
+	@echo "  make test             - Run backend tests"
+	@echo "  make test-coverage    - Run tests with coverage report"
 	@echo ""
 	@echo "  make frontend-install - Install npm dependencies"
 	@echo "  make frontend-build   - Build frontend"

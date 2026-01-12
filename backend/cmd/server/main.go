@@ -53,6 +53,7 @@ func main() {
 	mux.HandleFunc("GET /api/admin/users/{userId}/todos", adminMw(adminHandler.ListUserTodos))
 	mux.HandleFunc("POST /api/admin/users/{userId}/todos", adminMw(adminHandler.CreateUserTodo))
 	mux.HandleFunc("PUT /api/admin/users/{userId}/todos/{todoId}", adminMw(adminHandler.UpdateUserTodo))
+	mux.HandleFunc("DELETE /api/admin/users/{userId}/todos/{todoId}", adminMw(adminHandler.DeleteUserTodo))
 
 	// Serve static frontend files
 	// Try multiple paths for different deployment scenarios

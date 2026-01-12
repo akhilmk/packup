@@ -11,20 +11,11 @@ import (
 	"os"
 	"time"
 
+	"github.com/akhilmk/itinera/internal/models"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
-
-type User struct {
-	ID        string    `json:"id"`
-	GoogleID  string    `json:"google_id"`
-	Email     string    `json:"email"`
-	Name      string    `json:"name"`
-	AvatarURL string    `json:"avatar_url"`
-	Role      string    `json:"role"`
-	CreatedAt time.Time `json:"created_at"`
-}
 
 type Handler struct {
 	db *pgxpool.Pool
@@ -154,8 +145,7 @@ func (h *Handler) Middleware(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
-		ctx := context.WithValue(r.Context(), "user_id", user.ID)
-		ctx = context.WithValue(ctx, "user_role", user.Role)
+		ctx := SetUserContext(r.Context(), user.ID, user.Role)
 		next(w, r.WithContext(ctx))
 	}
 }
@@ -164,7 +154,7 @@ func (h *Handler) Middleware(next http.HandlerFunc) http.HandlerFunc {
 func determineUserRole(email string) string {
 	adminEmails := os.Getenv("ADMIN_EMAILS")
 	if adminEmails == "" {
-		return "user"
+		return string(models.RoleUser)
 	}
 
 	// Parse comma-separated admin emails
@@ -188,11 +178,11 @@ func determineUserRole(email string) string {
 			}
 		}
 		if trimmed == email {
-			return "admin"
+			return string(models.RoleAdmin)
 		}
 	}
 
-	return "user"
+	return string(models.RoleUser)
 }
 
 // Helpers
@@ -254,8 +244,8 @@ func (h *Handler) getGoogleUser(token string) (googleUser, error) {
 	return gu, nil
 }
 
-func (h *Handler) getOrCreateUser(ctx context.Context, gu googleUser) (User, error) {
-	var user User
+func (h *Handler) getOrCreateUser(ctx context.Context, gu googleUser) (models.User, error) {
+	var user models.User
 	// Check if exists
 	err := h.db.QueryRow(ctx, "SELECT id, google_id, email, name, avatar_url, role, created_at FROM users WHERE google_id=$1", gu.ID).
 		Scan(&user.ID, &user.GoogleID, &user.Email, &user.Name, &user.AvatarURL, &user.Role, &user.CreatedAt)
@@ -265,7 +255,7 @@ func (h *Handler) getOrCreateUser(ctx context.Context, gu googleUser) (User, err
 		role := determineUserRole(gu.Email)
 
 		// Create
-		user = User{
+		user = models.User{
 			ID:        uuid.NewString(),
 			GoogleID:  gu.ID,
 			Email:     gu.Email,
@@ -298,8 +288,8 @@ func (h *Handler) createSession(ctx context.Context, userID string) (string, err
 	return token, err
 }
 
-func (h *Handler) getUserBySession(ctx context.Context, token string) (User, error) {
-	var user User
+func (h *Handler) getUserBySession(ctx context.Context, token string) (models.User, error) {
+	var user models.User
 	err := h.db.QueryRow(ctx, `
 		SELECT u.id, u.google_id, u.email, u.name, u.avatar_url, u.role, u.created_at 
 		FROM sessions s

@@ -11,9 +11,9 @@
   let loading = true;
   let filter: 'all' | 'pending' | 'in-progress' | 'done' = 'all';
 
-  $: filteredTodos = filter === 'all' 
-    ? todos 
-    : todos.filter(t => t.status === filter);
+  // For admin "My Todos", exclude default tasks from the count
+  $: displayTodos = todos.filter(t => !(user?.role === 'admin' && t.is_default_task));
+  $: filteredTodos = filter === 'all' ? displayTodos : displayTodos.filter(t => t.status === filter);
 
   async function fetchTodos() {
     try {
@@ -87,7 +87,7 @@
         on:click={() => filter = 'all'}
       >
         <span class="text-xs font-bold uppercase tracking-wider">
-          All ({todos.length})
+          All ({displayTodos.length})
         </span>
       </button>
 
@@ -96,7 +96,7 @@
         on:click={() => filter = 'pending'}
       >
         <span class="text-xs font-bold {filter === 'pending' ? 'text-indigo-700' : 'text-slate-500'} uppercase tracking-wider">
-          Pending ({todos.filter(t => t.status === 'pending').length})
+          Pending ({displayTodos.filter(t => t.status === 'pending').length})
         </span>
       </button>
 
@@ -105,7 +105,7 @@
         on:click={() => filter = 'in-progress'}
       >
         <span class="text-xs font-bold {filter === 'in-progress' ? 'text-amber-700' : 'text-slate-500'} uppercase tracking-wider">
-          In Progress ({todos.filter(t => t.status === 'in-progress').length})
+          In Progress ({displayTodos.filter(t => t.status === 'in-progress').length})
         </span>
       </button>
 
@@ -114,7 +114,7 @@
         on:click={() => filter = 'done'}
       >
         <span class="text-xs font-bold {filter === 'done' ? 'text-emerald-700' : 'text-slate-500'} uppercase tracking-wider">
-          Done ({todos.filter(t => t.status === 'done').length})
+          Done ({displayTodos.filter(t => t.status === 'done').length})
         </span>
       </button>
     </div>
@@ -149,7 +149,7 @@
           on:dragend={handleDragEnd}
           class="cursor-grab active:cursor-grabbing {draggedItemIndex === index ? 'opacity-50 bg-indigo-50/50' : ''} {filter !== 'all' ? 'cursor-default active:cursor-default' : ''}"
         >
-          <TodoItem {todo} on:update={fetchTodos} />
+          <TodoItem {todo} {user} on:update={fetchTodos} on:delete={fetchTodos} />
         </div>
       {/each}
     </div>

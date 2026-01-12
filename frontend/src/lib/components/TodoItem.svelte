@@ -1,14 +1,19 @@
 <script lang="ts">
-  import { api, type Todo, type TodoStatus } from "../api";
+  import { api, type Todo, type TodoStatus, type User } from "../api";
   import { createEventDispatcher } from "svelte";
   import { fade, slide } from "svelte/transition";
+  import StatusIndicator from "./StatusIndicator.svelte";
 
   export let todo: Todo;
+  export let user: User | null = null;
   const dispatch = createEventDispatcher();
 
   let isEditing = false;
   let editText = todo.text;
   const LIMIT = 200;
+
+  // Check if current user created this task (vs admin-created)
+  $: isUserCreated = user && todo.created_by_user_id === user.id;
 
   async function cycleStatus() {
     let nextStatus: TodoStatus;
@@ -43,6 +48,7 @@
         shared_with_admin: !todo.shared_with_admin
       });
       todo = updated;
+      dispatch("update");
     } catch (e) {
       console.error("Failed to toggle share status", e);
     }
@@ -79,22 +85,12 @@
   class="relative flex items-center gap-4 p-4 bg-white border-b border-gray-50 last:border-0 hover:bg-indigo-50/30 transition-all group hover:z-10"
 >
   <!-- Status Cycle Button -->
-  <button 
-    on:click={cycleStatus}
-    class="relative flex items-center justify-center w-6 h-6 rounded-full border-2 transition-all duration-200 cursor-pointer hover:scale-110 active:scale-95
-           {todo.status === 'done' ? 'bg-emerald-500 border-emerald-500' : 
-            todo.status === 'in-progress' ? 'bg-amber-100 border-amber-400' : 
-            'bg-white border-slate-200 hover:border-indigo-400'}"
-    title="Click to cycle status: Pending -> In Progress -> Done"
-  >
-    {#if todo.status === 'done'}
-      <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
-        <polyline points="20 6 9 17 4 12"></polyline>
-      </svg>
-    {:else if todo.status === 'in-progress'}
-      <div class="w-2.5 h-2.5 bg-amber-500 rounded-full animate-pulse"></div>
-    {/if}
-  </button>
+  <!-- Status Cycle Button -->
+  <StatusIndicator 
+    status={todo.status} 
+    clickable={true} 
+    on:click={cycleStatus} 
+  />
 
   {#if isEditing}
     <form 
@@ -136,7 +132,7 @@
       class="flex-1 font-medium selection:bg-indigo-100 transition-all duration-300 
              {todo.status === 'done' ? 'line-through text-slate-300 opacity-60' : 'text-slate-700'}
              {todo.status === 'in-progress' ? 'text-indigo-600' : ''}"
-      on:dblclick={() => { if (!todo.is_default_task) isEditing = true; }}
+      on:dblclick={() => { if (!todo.is_default_task && isUserCreated) isEditing = true; }}
     >
       {todo.text}
       {#if todo.is_default_task}
@@ -149,7 +145,19 @@
           Default Task
         </span>
       {/if}
-      {#if !todo.is_default_task && todo.shared_with_admin}
+      {#if !todo.is_default_task && !isUserCreated && user?.role !== 'admin'}
+        <!-- Admin-created task shown to user -->
+        <span class="inline-flex items-center ml-2 text-[10px] font-bold tracking-wider text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100 uppercase align-middle transform -translate-y-0.5 gap-1 shadow-sm">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+            <circle cx="8.5" cy="7" r="4"></circle>
+            <polyline points="17 11 19 13 23 9"></polyline>
+          </svg>
+          Admin Shared
+        </span>
+      {/if}
+      {#if !todo.is_default_task && isUserCreated && todo.shared_with_admin && user?.role !== 'admin'}
+        <!-- User-created shared task shown to user -->
         <span class="inline-flex items-center ml-2 text-[10px] font-bold tracking-wider text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-100 uppercase align-middle transform -translate-y-0.5 gap-1 shadow-sm">
           <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
@@ -172,8 +180,8 @@
     </span>
     
     <div class="opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center space-x-1">
-      {#if !todo.is_default_task}
-      <!-- Share Toggle (only for personal tasks) -->
+      {#if !todo.is_default_task && isUserCreated && user?.role !== 'admin'}
+      <!-- Share Toggle (only for user-created tasks) -->
       <button
         on:click={toggleShare}
         class="p-2 transition-all rounded-lg {todo.shared_with_admin ? 'text-green-600 bg-green-50 hover:bg-green-100' : 'text-slate-400 hover:text-green-600 hover:bg-green-50'}"
@@ -190,7 +198,9 @@
           {/if}
         </svg>
       </button>
+      {/if}
 
+      {#if !todo.is_default_task && isUserCreated}
       <button 
         on:click={() => (isEditing = true)} 
         class="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-100/50 rounded-lg transition-all"
@@ -202,15 +212,10 @@
           <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
         </svg>
       </button>
-      {/if}
       <button 
         on:click={deleteTodo} 
-        disabled={todo.is_default_task}
-        class="p-2 transition-all rounded-lg
-               {todo.is_default_task 
-                 ? 'text-slate-300 cursor-not-allowed' 
-                 : 'text-slate-400 hover:text-red-500 hover:bg-red-50'}"
-        title={todo.is_default_task ? "Default tasks cannot be deleted" : "Delete task"}
+        class="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+        title="Delete task"
         aria-label="Delete task"
       >
         <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -220,6 +225,7 @@
           <line x1="14" y1="11" x2="14" y2="17"></line>
         </svg>
       </button>
+      {/if}
     </div>
   {/if}
 </div>
