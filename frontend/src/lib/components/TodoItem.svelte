@@ -26,10 +26,34 @@
 
   async function deleteTodo() {
     try {
+      if (todo.is_default_task) {
+        // Should not be reachable due to UI restrictions, but for safety
+        return;
+      }
       await api.deleteTodo(todo.id);
-      dispatch("update");
+      dispatch("delete", todo.id);
     } catch (e) {
-      console.error(e);
+      console.error("Failed to delete todo", e);
+    }
+  }
+
+  async function toggleShare() {
+    try {
+      const updated = await api.updateTodo(todo.id, {
+        shared_with_admin: !todo.shared_with_admin
+      });
+      todo = updated;
+    } catch (e) {
+      console.error("Failed to toggle share status", e);
+    }
+  }
+
+  function handleKeydown(event: KeyboardEvent) {
+    if (event.key === "Enter") {
+      saveEdit();
+    } else if (event.key === "Escape") {
+      isEditing = false;
+      editText = todo.text;
     }
   }
 
@@ -112,17 +136,26 @@
       class="flex-1 font-medium selection:bg-indigo-100 transition-all duration-300 
              {todo.status === 'done' ? 'line-through text-slate-300 opacity-60' : 'text-slate-700'}
              {todo.status === 'in-progress' ? 'text-indigo-600' : ''}"
-      on:dblclick={() => { if (!todo.is_customer_task) isEditing = true; }}
+      on:dblclick={() => { if (!todo.is_default_task) isEditing = true; }}
     >
       {todo.text}
-      {#if todo.is_customer_task}
+      {#if todo.is_default_task}
         <span class="inline-flex items-center ml-2 text-[10px] font-bold tracking-wider text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-100 uppercase align-middle transform -translate-y-0.5 gap-1 shadow-sm">
           <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
             <path d="M2 17l10 5 10-5"></path>
             <path d="M2 12l10 5 10-5"></path>
           </svg>
-          Customer Task
+          Default Task
+        </span>
+      {/if}
+      {#if !todo.is_default_task && todo.shared_with_admin}
+        <span class="inline-flex items-center ml-2 text-[10px] font-bold tracking-wider text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-100 uppercase align-middle transform -translate-y-0.5 gap-1 shadow-sm">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+            <circle cx="12" cy="12" r="3"></circle>
+          </svg>
+          Shared
         </span>
       {/if}
       {#if todo.status === 'in-progress'}
@@ -139,7 +172,25 @@
     </span>
     
     <div class="opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center space-x-1">
-      {#if !todo.is_customer_task}
+      {#if !todo.is_default_task}
+      <!-- Share Toggle (only for personal tasks) -->
+      <button
+        on:click={toggleShare}
+        class="p-2 transition-all rounded-lg {todo.shared_with_admin ? 'text-green-600 bg-green-50 hover:bg-green-100' : 'text-slate-400 hover:text-green-600 hover:bg-green-50'}"
+        title={todo.shared_with_admin ? "Unshare with Admin" : "Share with Admin"}
+        aria-label="Toggle share with admin"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          {#if todo.shared_with_admin}
+            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+            <line x1="1" y1="1" x2="23" y2="23"></line>
+          {:else}
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+            <circle cx="12" cy="12" r="3"></circle>
+          {/if}
+        </svg>
+      </button>
+
       <button 
         on:click={() => (isEditing = true)} 
         class="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-100/50 rounded-lg transition-all"
@@ -154,12 +205,12 @@
       {/if}
       <button 
         on:click={deleteTodo} 
-        disabled={todo.is_customer_task}
+        disabled={todo.is_default_task}
         class="p-2 transition-all rounded-lg
-               {todo.is_customer_task 
+               {todo.is_default_task 
                  ? 'text-slate-300 cursor-not-allowed' 
                  : 'text-slate-400 hover:text-red-500 hover:bg-red-50'}"
-        title={todo.is_customer_task ? "Customer tasks cannot be deleted" : "Delete task"}
+        title={todo.is_default_task ? "Default tasks cannot be deleted" : "Delete task"}
         aria-label="Delete task"
       >
         <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

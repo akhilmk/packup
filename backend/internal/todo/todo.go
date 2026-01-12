@@ -2,6 +2,7 @@ package todo
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -16,7 +17,8 @@ type Todo struct {
 	Created         time.Time `json:"created"`
 	Position        float64   `json:"position"`
 	CreatedByUserID *string   `json:"created_by_user_id,omitempty"`
-	IsCustomerTask  bool      `json:"is_customer_task"`
+	IsDefaultTask   bool      `json:"is_default_task"`
+	SharedWithAdmin bool      `json:"shared_with_admin"`
 }
 
 type Handler struct {
@@ -51,7 +53,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 
 	var query string
 	if excludeAdminTodos {
-		// Only return user's personal todos (exclude customer tasks)
+		// Only return user's personal todos (exclude default tasks)
 		query = `
 			SELECT 
 				t.id, 
@@ -60,33 +62,35 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 				t.created, 
 				t.position,
 				t.created_by_user_id, 
-				t.is_customer_task
+				t.is_default_task,
+				t.shared_with_admin
 			FROM todos t
-			WHERE t.user_id = $1 AND t.is_customer_task = false
+			WHERE t.user_id = $1 AND t.is_default_task = false
 			ORDER BY position ASC, created DESC 
 			LIMIT 100
 		`
 	} else {
-		// Return user's own todos + all customer tasks
-		// For customer tasks, use user-specific status/position from user_todo_state if exists
+		// Return user's own todos + all default tasks
+		// For default tasks, use user-specific status/position from user_todo_state if exists
 		query = `
 			SELECT 
 				t.id, 
 				t.text, 
 				CASE 
-					WHEN t.is_customer_task THEN COALESCE(uts.status, t.status)
+					WHEN t.is_default_task THEN COALESCE(uts.status, t.status)
 					ELSE t.status
 				END as status,
 				t.created, 
 				CASE 
-					WHEN t.is_customer_task THEN COALESCE(uts.position, t.position)
+					WHEN t.is_default_task THEN COALESCE(uts.position, t.position)
 					ELSE t.position
 				END as position,
 				t.created_by_user_id, 
-				t.is_customer_task
+				t.is_default_task,
+				t.shared_with_admin
 			FROM todos t
-			LEFT JOIN user_todo_state uts ON t.id = uts.todo_id AND uts.user_id = $1 AND t.is_customer_task = true
-			WHERE t.user_id = $1 OR t.is_customer_task = true
+			LEFT JOIN user_todo_state uts ON t.id = uts.todo_id AND uts.user_id = $1 AND t.is_default_task = true
+			WHERE t.user_id = $1 OR t.is_default_task = true
 			ORDER BY position ASC, created DESC 
 			LIMIT 100
 		`
@@ -102,7 +106,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	var todos []Todo
 	for rows.Next() {
 		var t Todo
-		if err := rows.Scan(&t.ID, &t.Text, &t.Status, &t.Created, &t.Position, &t.CreatedByUserID, &t.IsCustomerTask); err != nil {
+		if err := rows.Scan(&t.ID, &t.Text, &t.Status, &t.Created, &t.Position, &t.CreatedByUserID, &t.IsDefaultTask, &t.SharedWithAdmin); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -150,8 +154,9 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	created := time.Now()
 
 	// This endpoint is for PERSONAL todos only.
-	// Admin (Global, Customer) todos are created via the Admin API.
-	isCustomerTask := false
+	// Admin (Global, Default) todos are created via the Admin API.
+	isDefaultTask := false
+	sharedWithAdmin := false // Personal todos are private by default
 
 	// Get min position for this user to put at top
 	var minPos float64
@@ -160,9 +165,9 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 
 	// Insert personal todo
 	_, err := h.db.Exec(r.Context(), `
-		INSERT INTO todos(id, text, status, created, position, user_id, created_by_user_id, is_customer_task) 
-		VALUES($1,$2,$3,$4,$5,$6,$7,$8)
-	`, id, req.Text, status, created, position, userID, userID, isCustomerTask)
+		INSERT INTO todos(id, text, status, created, position, user_id, created_by_user_id, is_default_task, shared_with_admin) 
+		VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)
+	`, id, req.Text, status, created, position, userID, userID, isDefaultTask, sharedWithAdmin)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -179,7 +184,8 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		Created:         created,
 		Position:        position,
 		CreatedByUserID: &createdByUserID,
-		IsCustomerTask:  isCustomerTask,
+		IsDefaultTask:   isDefaultTask,
+		SharedWithAdmin: sharedWithAdmin,
 	})
 }
 
@@ -197,8 +203,9 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		Text   string `json:"text"`
-		Status string `json:"status"`
+		Text            string `json:"text"`
+		Status          string `json:"status"`
+		SharedWithAdmin *bool  `json:"shared_with_admin,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid json", http.StatusBadRequest)
@@ -222,13 +229,13 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check if todo exists and if user can update it
-	var isCustomerTask bool
+	var isDefaultTask bool
 	var todoUserID *string
 	err := h.db.QueryRow(r.Context(), `
-		SELECT is_customer_task, user_id 
+		SELECT is_default_task, user_id 
 		FROM todos 
 		WHERE id=$1
-	`, id).Scan(&isCustomerTask, &todoUserID)
+	`, id).Scan(&isDefaultTask, &todoUserID)
 
 	if err != nil {
 		http.Error(w, "todo not found", http.StatusNotFound)
@@ -237,17 +244,18 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 
 	// Users can update:
 	// 1. Their own todos (user_id matches)
-	// 2. Customer tasks (is_customer_task=true)
-	canUpdate := isCustomerTask || (todoUserID != nil && *todoUserID == userID)
+	// 2. Default tasks (is_default_task=true)
+	canUpdate := isDefaultTask || (todoUserID != nil && *todoUserID == userID)
 	if !canUpdate {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
 
 	// Handle update based on todo type
-	if isCustomerTask {
-		// For customer tasks, update user_todo_state (per-user status)
-		// Only update status if provided (text updates not allowed for customer tasks)
+	if isDefaultTask {
+		// For default tasks, update user_todo_state (per-user status)
+		// Only update status if provided (text updates not allowed for default tasks)
+		// Sharing cannot be toggled for default tasks
 		if req.Status != "" {
 			_, err = h.db.Exec(r.Context(), `
 				INSERT INTO user_todo_state (user_id, todo_id, status, position, updated_at)
@@ -263,18 +271,39 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	} else {
-		// For personal todos, update the todos table
-		_, err = h.db.Exec(r.Context(), `
-			UPDATE todos 
-			SET text = CASE WHEN $2 = '' THEN text ELSE $2 END, 
-			    status = CASE WHEN $3 = '' THEN status ELSE $3 END 
-			WHERE id=$1
-		`, id, req.Text, req.Status)
+		// For personal todos, update all fields
+		// Build dynamic query
+		query := "UPDATE todos SET "
+		var args []interface{}
+		argID := 1
 
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+		if req.Text != "" {
+			query += fmt.Sprintf("text = $%d, ", argID)
+			args = append(args, req.Text)
+			argID++
 		}
+		if req.Status != "" {
+			query += fmt.Sprintf("status = $%d, ", argID)
+			args = append(args, req.Status)
+			argID++
+		}
+		if req.SharedWithAdmin != nil {
+			query += fmt.Sprintf("shared_with_admin = $%d, ", argID)
+			args = append(args, *req.SharedWithAdmin)
+			argID++
+		}
+
+		// Remove trailing comma and space
+		query = query[:len(query)-2]
+
+		query += fmt.Sprintf(" WHERE id = $%d", argID)
+		args = append(args, id)
+
+		_, err = h.db.Exec(r.Context(), query, args...)
+	}
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	// Fetch and return updated todo with user-specific state
@@ -283,19 +312,19 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		SELECT 
 			t.id, t.text, 
 			CASE 
-				WHEN t.is_customer_task THEN COALESCE(uts.status, t.status)
+				WHEN t.is_default_task THEN COALESCE(uts.status, t.status)
 				ELSE t.status
 			END as status,
 			t.created, 
 			CASE 
-				WHEN t.is_customer_task THEN COALESCE(uts.position, t.position)
+				WHEN t.is_default_task THEN COALESCE(uts.position, t.position)
 				ELSE t.position
 			END as position,
-			t.created_by_user_id, t.is_customer_task
+			t.created_by_user_id, t.is_default_task, t.shared_with_admin
 		FROM todos t
-		LEFT JOIN user_todo_state uts ON t.id = uts.todo_id AND uts.user_id = $2 AND t.is_customer_task = true
+		LEFT JOIN user_todo_state uts ON t.id = uts.todo_id AND uts.user_id = $2 AND t.is_default_task = true
 		WHERE t.id=$1
-	`, id, userID).Scan(&t.ID, &t.Text, &t.Status, &t.Created, &t.Position, &t.CreatedByUserID, &t.IsCustomerTask); err != nil {
+	`, id, userID).Scan(&t.ID, &t.Text, &t.Status, &t.Created, &t.Position, &t.CreatedByUserID, &t.IsDefaultTask, &t.SharedWithAdmin); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -333,16 +362,16 @@ func (h *Handler) Reorder(w http.ResponseWriter, r *http.Request) {
 	for i, id := range req.IDs {
 		pos := float64(i) * 1024.0
 
-		// Check if this is a customer task
-		var isCustomerTask bool
-		err := tx.QueryRow(r.Context(), `SELECT is_customer_task FROM todos WHERE id=$1`, id).Scan(&isCustomerTask)
+		// Check if this is a default task
+		var isDefaultTask bool
+		err := tx.QueryRow(r.Context(), `SELECT is_default_task FROM todos WHERE id=$1`, id).Scan(&isDefaultTask)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		if isCustomerTask {
-			// For customer tasks, UPSERT into user_todo_state
+		if isDefaultTask {
+			// For default tasks, UPSERT into user_todo_state
 			_, err := tx.Exec(r.Context(), `
 				INSERT INTO user_todo_state (user_id, todo_id, status, position, updated_at)
 				VALUES ($1, $2, 
@@ -393,28 +422,28 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check if todo is a customer task
-	var isCustomerTask bool
+	// Check if todo is a default task
+	var isDefaultTask bool
 	var todoUserID *string
 	err := h.db.QueryRow(r.Context(), `
-		SELECT is_customer_task, user_id 
+		SELECT is_default_task, user_id 
 		FROM todos 
 		WHERE id=$1
-	`, id).Scan(&isCustomerTask, &todoUserID)
+	`, id).Scan(&isDefaultTask, &todoUserID)
 
 	if err != nil {
 		http.Error(w, "todo not found", http.StatusNotFound)
 		return
 	}
 
-	// Only admins can delete customer tasks
-	if isCustomerTask && userRole != "admin" {
-		http.Error(w, "forbidden: only admins can delete customer tasks", http.StatusForbidden)
+	// Only admins can delete default tasks
+	if isDefaultTask && userRole != "admin" {
+		http.Error(w, "forbidden: only admins can delete default tasks", http.StatusForbidden)
 		return
 	}
 
 	// Regular users can only delete their own todos
-	if !isCustomerTask && (todoUserID == nil || *todoUserID != userID) {
+	if !isDefaultTask && (todoUserID == nil || *todoUserID != userID) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}

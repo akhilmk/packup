@@ -25,7 +25,8 @@ type Todo struct {
 	Created         time.Time `json:"created"`
 	Position        float64   `json:"position"`
 	CreatedByUserID *string   `json:"created_by_user_id,omitempty"`
-	IsCustomerTask  bool      `json:"is_customer_task"`
+	IsDefaultTask   bool      `json:"is_default_task"`
+	SharedWithAdmin bool      `json:"shared_with_admin"`
 	UserID          *string   `json:"user_id,omitempty"`
 }
 
@@ -85,9 +86,9 @@ func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
 // ListAdminTodos returns all admin todos (admin only)
 func (h *Handler) ListAdminTodos(w http.ResponseWriter, r *http.Request) {
 	rows, err := h.db.Query(r.Context(), `
-		SELECT id, text, status, created, position, created_by_user_id, is_customer_task
+		SELECT id, text, status, created, position, created_by_user_id, is_default_task, shared_with_admin
 		FROM todos 
-		WHERE is_customer_task = true 
+		WHERE is_default_task = true 
 		ORDER BY position ASC, created DESC
 	`)
 	if err != nil {
@@ -99,7 +100,7 @@ func (h *Handler) ListAdminTodos(w http.ResponseWriter, r *http.Request) {
 	var todos []Todo
 	for rows.Next() {
 		var t Todo
-		if err := rows.Scan(&t.ID, &t.Text, &t.Status, &t.Created, &t.Position, &t.CreatedByUserID, &t.IsCustomerTask); err != nil {
+		if err := rows.Scan(&t.ID, &t.Text, &t.Status, &t.Created, &t.Position, &t.CreatedByUserID, &t.IsDefaultTask, &t.SharedWithAdmin); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -145,14 +146,14 @@ func (h *Handler) CreateAdminTodo(w http.ResponseWriter, r *http.Request) {
 
 	// Get min position to put at top
 	var minPos float64
-	_ = h.db.QueryRow(r.Context(), `SELECT COALESCE(MIN(position), 0) FROM todos WHERE is_customer_task=true`).Scan(&minPos)
+	_ = h.db.QueryRow(r.Context(), `SELECT COALESCE(MIN(position), 0) FROM todos WHERE is_default_task=true`).Scan(&minPos)
 	position := minPos - 1024.0
 
-	// Insert admin todo
+	// Insert admin todo (default task)
 	_, err := h.db.Exec(r.Context(), `
-		INSERT INTO todos(id, text, status, created, position, created_by_user_id, is_customer_task, user_id) 
-		VALUES($1,$2,$3,$4,$5,$6,$7,NULL)
-	`, id, req.Text, status, created, position, userID, true)
+		INSERT INTO todos(id, text, status, created, position, created_by_user_id, is_default_task, user_id, shared_with_admin) 
+		VALUES($1,$2,$3,$4,$5,$6,$7,NULL,$8)
+	`, id, req.Text, status, created, position, userID, true, false) // SharedWithAdmin is irrelevant for default tasks but defaulting to false
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -168,7 +169,8 @@ func (h *Handler) CreateAdminTodo(w http.ResponseWriter, r *http.Request) {
 		Created:         created,
 		Position:        position,
 		CreatedByUserID: &createdByUserID,
-		IsCustomerTask:  true,
+		IsDefaultTask:   true,
+		SharedWithAdmin: false,
 	})
 }
 
@@ -193,15 +195,15 @@ func (h *Handler) UpdateAdminTodo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Verify it's a customer task
-	var isCustomerTask bool
-	err := h.db.QueryRow(r.Context(), `SELECT is_customer_task FROM todos WHERE id=$1`, id).Scan(&isCustomerTask)
+	// Verify it's a default task
+	var isDefaultTask bool
+	err := h.db.QueryRow(r.Context(), `SELECT is_default_task FROM todos WHERE id=$1`, id).Scan(&isDefaultTask)
 	if err != nil {
 		http.Error(w, "todo not found", http.StatusNotFound)
 		return
 	}
-	if !isCustomerTask {
-		http.Error(w, "not a customer task", http.StatusBadRequest)
+	if !isDefaultTask {
+		http.Error(w, "not a default task", http.StatusBadRequest)
 		return
 	}
 
@@ -215,10 +217,10 @@ func (h *Handler) UpdateAdminTodo(w http.ResponseWriter, r *http.Request) {
 	// Fetch and return updated todo
 	var t Todo
 	if err := h.db.QueryRow(r.Context(), `
-		SELECT id, text, status, created, position, created_by_user_id, is_customer_task
+		SELECT id, text, status, created, position, created_by_user_id, is_default_task, shared_with_admin
 		FROM todos 
 		WHERE id=$1
-	`, id).Scan(&t.ID, &t.Text, &t.Status, &t.Created, &t.Position, &t.CreatedByUserID, &t.IsCustomerTask); err != nil {
+	`, id).Scan(&t.ID, &t.Text, &t.Status, &t.Created, &t.Position, &t.CreatedByUserID, &t.IsDefaultTask, &t.SharedWithAdmin); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -235,15 +237,15 @@ func (h *Handler) DeleteAdminTodo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Verify it's a customer task
-	var isCustomerTask bool
-	err := h.db.QueryRow(r.Context(), `SELECT is_customer_task FROM todos WHERE id=$1`, id).Scan(&isCustomerTask)
+	// Verify it's a default task
+	var isDefaultTask bool
+	err := h.db.QueryRow(r.Context(), `SELECT is_default_task FROM todos WHERE id=$1`, id).Scan(&isDefaultTask)
 	if err != nil {
 		http.Error(w, "todo not found", http.StatusNotFound)
 		return
 	}
-	if !isCustomerTask {
-		http.Error(w, "not a customer task", http.StatusBadRequest)
+	if !isDefaultTask {
+		http.Error(w, "not a default task", http.StatusBadRequest)
 		return
 	}
 
@@ -278,26 +280,31 @@ func (h *Handler) ListUserTodos(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get user's todos (personal + customer with their specific status)
+	// Get user's todos (personal + default with their specific status)
+	// IMPORTANT: For personal todos, ONLY show if shared_with_admin = true
 	rows, err := h.db.Query(r.Context(), `
 		SELECT 
 			t.id, 
 			t.text, 
 			CASE 
-				WHEN t.is_customer_task THEN COALESCE(uts.status, t.status)
+				WHEN t.is_default_task THEN COALESCE(uts.status, t.status)
 				ELSE t.status
 			END as status,
 			t.created, 
 			CASE 
-				WHEN t.is_customer_task THEN COALESCE(uts.position, t.position)
+				WHEN t.is_default_task THEN COALESCE(uts.position, t.position)
 				ELSE t.position
 			END as position,
 			t.created_by_user_id, 
-			t.is_customer_task,
+			t.is_default_task,
+			t.shared_with_admin,
 			t.user_id
 		FROM todos t
-		LEFT JOIN user_todo_state uts ON t.id = uts.todo_id AND uts.user_id = $1 AND t.is_customer_task = true
-		WHERE t.user_id = $1 OR t.is_customer_task = true 
+		LEFT JOIN user_todo_state uts ON t.id = uts.todo_id AND uts.user_id = $1 AND t.is_default_task = true
+		WHERE 
+			(t.user_id = $1 AND t.shared_with_admin = true) -- Show personal only if shared
+			OR 
+			(t.is_default_task = true) -- Always show default tasks
 		ORDER BY position ASC, created DESC
 	`, userID)
 	if err != nil {
@@ -309,7 +316,7 @@ func (h *Handler) ListUserTodos(w http.ResponseWriter, r *http.Request) {
 	var todos []Todo
 	for rows.Next() {
 		var t Todo
-		if err := rows.Scan(&t.ID, &t.Text, &t.Status, &t.Created, &t.Position, &t.CreatedByUserID, &t.IsCustomerTask, &t.UserID); err != nil {
+		if err := rows.Scan(&t.ID, &t.Text, &t.Status, &t.Created, &t.Position, &t.CreatedByUserID, &t.IsDefaultTask, &t.SharedWithAdmin, &t.UserID); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}

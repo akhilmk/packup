@@ -34,9 +34,9 @@
   async function loadAdminTodos() {
     loading = true;
     try {
-      adminTodos = await api.listCustomerTasks();
+      adminTodos = await api.listDefaultTasks();
     } catch (e) {
-      console.error("Failed to load customer tasks", e);
+      console.error("Failed to load default tasks", e);
     } finally {
       loading = false;
     }
@@ -68,11 +68,11 @@
     if (!newAdminTodoText.trim()) return;
     
     try {
-      await api.createCustomerTask(newAdminTodoText);
+      await api.createDefaultTask(newAdminTodoText);
       newAdminTodoText = "";
       await loadAdminTodos();
     } catch (e) {
-      console.error("Failed to create customer task", e);
+      console.error("Failed to create default task", e);
     }
   }
 
@@ -90,23 +90,23 @@
     if (!editingTodoText.trim()) return;
     
     try {
-      await api.updateCustomerTask(id, editingTodoText);
+      await api.updateDefaultTask(id, editingTodoText);
       editingTodoId = null;
       editingTodoText = "";
       await loadAdminTodos();
     } catch (e) {
-      console.error("Failed to update customer task", e);
+      console.error("Failed to update default task", e);
     }
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Delete this customer task? It will be removed for all users.")) return;
+    if (!confirm("Delete this default task? It will be removed for all users.")) return;
     
     try {
-      await api.deleteCustomerTask(id);
+      await api.deleteDefaultTask(id);
       await loadAdminTodos();
     } catch (e) {
-      console.error("Failed to delete customer task", e);
+      console.error("Failed to delete default task", e);
     }
   }
 </script>
@@ -140,7 +140,7 @@
         class="px-6 py-3 font-bold text-sm transition-all {currentView === 'admin-todos' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-slate-500 hover:text-slate-700'}"
         on:click={() => switchView('admin-todos')}
       >
-        Customer Tasks
+        Default Tasks
       </button>
     </div>
   </header>
@@ -202,7 +202,7 @@
     <div class="space-y-6">
       <!-- Add Admin Todo Form -->
       <div class="glass-card rounded-2xl p-6">
-        <h2 class="text-lg font-bold text-slate-800 mb-4">Add Customer Task</h2>
+        <h2 class="text-lg font-bold text-slate-800 mb-4">Add Default Task</h2>
         <form on:submit|preventDefault={handleCreateAdminTodo} class="flex gap-3">
           <input
             bind:value={newAdminTodoText}
@@ -223,7 +223,7 @@
       <div class="glass-card rounded-2xl overflow-hidden divide-y divide-slate-100">
         {#if adminTodos.length === 0}
           <div class="p-12 text-center">
-            <p class="text-slate-500">No customer tasks yet. Create one above!</p>
+            <p class="text-slate-500">No default tasks yet. Create one above!</p>
           </div>
         {:else}
           {#each adminTodos as todo}
@@ -339,9 +339,14 @@
             </div>
             <span class="flex-1 font-medium text-slate-700 {todo.status === 'done' ? 'line-through opacity-60' : ''}">
               {todo.text}
-              {#if todo.is_customer_task}
+              {#if todo.is_default_task}
                 <span class="inline-flex items-center ml-2 text-[10px] font-bold tracking-wider text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-100 uppercase align-middle transform -translate-y-0.5">
-                  Customer Task
+                  Default Task
+                </span>
+              {/if}
+              {#if !todo.is_default_task && todo.shared_with_admin}
+                <span class="inline-flex items-center ml-2 text-[10px] font-bold tracking-wider text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-100 uppercase align-middle transform -translate-y-0.5">
+                  Shared
                 </span>
               {/if}
             </span>

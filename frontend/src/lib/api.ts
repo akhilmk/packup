@@ -9,7 +9,8 @@ export interface Todo {
     status: TodoStatus;
     created: string; // ISO date string
     position?: number;
-    is_customer_task?: boolean;
+    is_default_task?: boolean;
+    shared_with_admin?: boolean;
     created_by_user_id?: string;
 }
 
@@ -50,7 +51,7 @@ export const api = {
         return handleResponse<Todo>(response);
     },
 
-    async updateTodo(id: string, updates: { text?: string; status?: TodoStatus }): Promise<Todo> {
+    async updateTodo(id: string, updates: { text?: string; status?: TodoStatus; shared_with_admin?: boolean }): Promise<Todo> {
         const response = await fetch(`${API_BASE_URL}/todos/${id}`, {
             method: "PUT",
             headers: {
@@ -99,7 +100,7 @@ export const api = {
         return data.users;
     },
 
-    async listCustomerTasks(): Promise<Todo[]> {
+    async listDefaultTasks(): Promise<Todo[]> {
         const response = await fetch(`${API_BASE_URL}/admin/todos`);
         const data = await handleResponse<{ todos: Todo[] }>(response);
         return data.todos;
@@ -111,7 +112,7 @@ export const api = {
         return data.todos;
     },
 
-    async createCustomerTask(text: string): Promise<Todo> {
+    async createDefaultTask(text: string): Promise<Todo> {
         const response = await fetch(`${API_BASE_URL}/admin/todos`, {
             method: "POST",
             headers: {
@@ -122,7 +123,7 @@ export const api = {
         return handleResponse<Todo>(response);
     },
 
-    async updateCustomerTask(id: string, text: string): Promise<Todo> {
+    async updateDefaultTask(id: string, text: string): Promise<Todo> {
         const response = await fetch(`${API_BASE_URL}/admin/todos/${id}`, {
             method: "PUT",
             headers: {
@@ -133,7 +134,7 @@ export const api = {
         return handleResponse<Todo>(response);
     },
 
-    async deleteCustomerTask(id: string): Promise<void> {
+    async deleteDefaultTask(id: string): Promise<void> {
         const response = await fetch(`${API_BASE_URL}/admin/todos/${id}`, {
             method: "DELETE",
         });
