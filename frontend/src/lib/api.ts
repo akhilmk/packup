@@ -7,8 +7,9 @@ export interface Todo {
     id: string;
     text: string;
     status: TodoStatus;
+    created: string; // ISO date string
     position?: number;
-    is_admin_todo?: boolean;
+    is_customer_task?: boolean;
     created_by_user_id?: string;
 }
 
@@ -98,7 +99,7 @@ export const api = {
         return data.users;
     },
 
-    async listAdminTodos(): Promise<Todo[]> {
+    async listCustomerTasks(): Promise<Todo[]> {
         const response = await fetch(`${API_BASE_URL}/admin/todos`);
         const data = await handleResponse<{ todos: Todo[] }>(response);
         return data.todos;
@@ -108,6 +109,35 @@ export const api = {
         const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/todos`);
         const data = await handleResponse<{ todos: Todo[] }>(response);
         return data.todos;
+    },
+
+    async createCustomerTask(text: string): Promise<Todo> {
+        const response = await fetch(`${API_BASE_URL}/admin/todos`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ text }),
+        });
+        return handleResponse<Todo>(response);
+    },
+
+    async updateCustomerTask(id: string, text: string): Promise<Todo> {
+        const response = await fetch(`${API_BASE_URL}/admin/todos/${id}`, {
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ text }),
+        });
+        return handleResponse<Todo>(response);
+    },
+
+    async deleteCustomerTask(id: string): Promise<void> {
+        const response = await fetch(`${API_BASE_URL}/admin/todos/${id}`, {
+            method: "DELETE",
+        });
+        await handleResponse<{ success: boolean }>(response);
     }
 };
 
@@ -117,4 +147,5 @@ export interface User {
     name: string;
     avatar_url: string;
     role: 'admin' | 'user';
+    created_at: string;
 }

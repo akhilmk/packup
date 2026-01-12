@@ -10,6 +10,11 @@
   let userTodos: Todo[] = [];
   let selectedUser: User | null = null;
   let loading = true;
+  
+  // Admin todo management
+  let newAdminTodoText = "";
+  let editingTodoId: string | null = null;
+  let editingTodoText = "";
 
   onMount(async () => {
     await loadUsers();
@@ -29,9 +34,9 @@
   async function loadAdminTodos() {
     loading = true;
     try {
-      adminTodos = await api.listAdminTodos();
+      adminTodos = await api.listCustomerTasks();
     } catch (e) {
-      console.error("Failed to load admin todos", e);
+      console.error("Failed to load customer tasks", e);
     } finally {
       loading = false;
     }
@@ -56,6 +61,52 @@
       loadUsers();
     } else if (view === 'admin-todos') {
       loadAdminTodos();
+    }
+  }
+
+  async function handleCreateAdminTodo() {
+    if (!newAdminTodoText.trim()) return;
+    
+    try {
+      await api.createCustomerTask(newAdminTodoText);
+      newAdminTodoText = "";
+      await loadAdminTodos();
+    } catch (e) {
+      console.error("Failed to create customer task", e);
+    }
+  }
+
+  function startEdit(todo: Todo) {
+    editingTodoId = todo.id;
+    editingTodoText = todo.text;
+  }
+
+  function cancelEdit() {
+    editingTodoId = null;
+    editingTodoText = "";
+  }
+
+  async function saveEdit(id: string) {
+    if (!editingTodoText.trim()) return;
+    
+    try {
+      await api.updateCustomerTask(id, editingTodoText);
+      editingTodoId = null;
+      editingTodoText = "";
+      await loadAdminTodos();
+    } catch (e) {
+      console.error("Failed to update customer task", e);
+    }
+  }
+
+  async function handleDelete(id: string) {
+    if (!confirm("Delete this customer task? It will be removed for all users.")) return;
+    
+    try {
+      await api.deleteCustomerTask(id);
+      await loadAdminTodos();
+    } catch (e) {
+      console.error("Failed to delete customer task", e);
     }
   }
 </script>
@@ -89,7 +140,7 @@
         class="px-6 py-3 font-bold text-sm transition-all {currentView === 'admin-todos' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-slate-500 hover:text-slate-700'}"
         on:click={() => switchView('admin-todos')}
       >
-        Admin Todos
+        Customer Tasks
       </button>
     </div>
   </header>
@@ -147,33 +198,101 @@
       </div>
     </div>
   {:else if currentView === 'admin-todos'}
-    <!-- Admin Todos List -->
-    <div class="glass-card rounded-3xl overflow-hidden border-border divide-y divide-gray-50">
-      {#if adminTodos.length === 0}
-        <div class="p-12 text-center">
-          <p class="text-slate-500">No admin todos yet</p>
-        </div>
-      {:else}
-        {#each adminTodos as todo}
-          <div class="p-4 flex items-center gap-4">
-            <div class="flex items-center justify-center w-6 h-6 rounded-full border-2 {todo.status === 'done' ? 'bg-emerald-500 border-emerald-500' : todo.status === 'in-progress' ? 'bg-amber-100 border-amber-400' : 'bg-white border-slate-200'}">
-              {#if todo.status === 'done'}
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4">
-                  <polyline points="20 6 9 17 4 12"></polyline>
-                </svg>
-              {:else if todo.status === 'in-progress'}
-                <div class="w-2.5 h-2.5 bg-amber-500 rounded-full animate-pulse"></div>
+    <!-- Admin Todos Management -->
+    <div class="space-y-6">
+      <!-- Add Admin Todo Form -->
+      <div class="glass-card rounded-2xl p-6">
+        <h2 class="text-lg font-bold text-slate-800 mb-4">Add Customer Task</h2>
+        <form on:submit|preventDefault={handleCreateAdminTodo} class="flex gap-3">
+          <input
+            bind:value={newAdminTodoText}
+            placeholder="Enter task for all users..."
+            maxlength="200"
+            class="flex-1 px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+          />
+          <button
+            type="submit"
+            class="px-6 py-2 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition-colors"
+          >
+            Add Task
+          </button>
+        </form>
+      </div>
+
+      <!-- Admin Todos List -->
+      <div class="glass-card rounded-2xl overflow-hidden divide-y divide-slate-100">
+        {#if adminTodos.length === 0}
+          <div class="p-12 text-center">
+            <p class="text-slate-500">No customer tasks yet. Create one above!</p>
+          </div>
+        {:else}
+          {#each adminTodos as todo}
+            <div class="p-4 flex items-center gap-4 hover:bg-slate-50 transition-colors">
+              {#if editingTodoId === todo.id}
+                <!-- Edit Mode -->
+                <form on:submit|preventDefault={() => saveEdit(todo.id)} class="flex-1 flex gap-2">
+                  <input
+                    bind:value={editingTodoText}
+                    maxlength="200"
+                    class="flex-1 px-3 py-1.5 border border-indigo-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                    autofocus
+                  />
+                  <button
+                    type="submit"
+                    class="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                    title="Save"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    on:click={cancelEdit}
+                    class="p-2 text-slate-400 hover:bg-slate-100 rounded-lg transition-colors"
+                    title="Cancel"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <line x1="18" y1="6" x2="6" y2="18"></line>
+                      <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                  </button>
+                </form>
+              {:else}
+                <!-- View Mode -->
+                <span class="flex-1 font-medium text-slate-700">
+                  {todo.text}
+                </span>
+                <span class="text-xs text-slate-400">
+                  {new Date(todo.created).toLocaleDateString()}
+                </span>
+                <div class="flex items-center gap-1">
+                  <button
+                    on:click={() => startEdit(todo)}
+                    class="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                    title="Edit"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"></path>
+                      <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                    </svg>
+                  </button>
+                  <button
+                    on:click={() => handleDelete(todo.id)}
+                    class="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                    title="Delete"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <polyline points="3 6 5 6 21 6"></polyline>
+                      <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"></path>
+                    </svg>
+                  </button>
+                </div>
               {/if}
             </div>
-            <span class="flex-1 font-medium text-slate-700 {todo.status === 'done' ? 'line-through opacity-60' : ''}">
-              {todo.text}
-            </span>
-            <span class="text-xs text-slate-400">
-              {new Date(todo.created).toLocaleDateString()}
-            </span>
-          </div>
-        {/each}
-      {/if}
+          {/each}
+        {/if}
+      </div>
     </div>
   {:else if currentView === 'user-todos' && selectedUser}
     <!-- User Todos View -->
@@ -220,9 +339,9 @@
             </div>
             <span class="flex-1 font-medium text-slate-700 {todo.status === 'done' ? 'line-through opacity-60' : ''}">
               {todo.text}
-              {#if todo.is_admin_todo}
+              {#if todo.is_customer_task}
                 <span class="inline-flex items-center ml-2 text-[10px] font-bold tracking-wider text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-100 uppercase align-middle transform -translate-y-0.5">
-                  Admin Task
+                  Customer Task
                 </span>
               {/if}
             </span>

@@ -112,17 +112,17 @@
       class="flex-1 font-medium selection:bg-indigo-100 transition-all duration-300 
              {todo.status === 'done' ? 'line-through text-slate-300 opacity-60' : 'text-slate-700'}
              {todo.status === 'in-progress' ? 'text-indigo-600' : ''}"
-      on:dblclick={() => (isEditing = true)}
+      on:dblclick={() => { if (!todo.is_customer_task) isEditing = true; }}
     >
       {todo.text}
-      {#if todo.is_admin_todo}
+      {#if todo.is_customer_task}
         <span class="inline-flex items-center ml-2 text-[10px] font-bold tracking-wider text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-100 uppercase align-middle transform -translate-y-0.5 gap-1 shadow-sm">
           <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
             <path d="M2 17l10 5 10-5"></path>
             <path d="M2 12l10 5 10-5"></path>
           </svg>
-          Admin Task
+          Customer Task
         </span>
       {/if}
       {#if todo.status === 'in-progress'}
@@ -139,6 +139,7 @@
     </span>
     
     <div class="opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center space-x-1">
+      {#if !todo.is_customer_task}
       <button 
         on:click={() => (isEditing = true)} 
         class="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-100/50 rounded-lg transition-all"
@@ -150,14 +151,15 @@
           <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
         </svg>
       </button>
+      {/if}
       <button 
         on:click={deleteTodo} 
-        disabled={todo.is_admin_todo}
+        disabled={todo.is_customer_task}
         class="p-2 transition-all rounded-lg
-               {todo.is_admin_todo 
+               {todo.is_customer_task 
                  ? 'text-slate-300 cursor-not-allowed' 
                  : 'text-slate-400 hover:text-red-500 hover:bg-red-50'}"
-        title={todo.is_admin_todo ? "Admin tasks cannot be deleted" : "Delete task"}
+        title={todo.is_customer_task ? "Customer tasks cannot be deleted" : "Delete task"}
         aria-label="Delete task"
       >
         <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
