@@ -11,8 +11,13 @@ export interface Todo {
     position?: number;
     is_default_task?: boolean;
     shared_with_admin?: boolean;
+    hidden_from_user?: boolean;
     created_by_user_id?: string;
 }
+
+// ... existing code ...
+
+
 
 interface ListTodosResponse {
     todos: Todo[];
@@ -40,13 +45,13 @@ export const api = {
         return data.todos;
     },
 
-    async createTodo(text: string): Promise<Todo> {
+    async createTodo(text: string, sharedWithAdmin: boolean = true): Promise<Todo> {
         const response = await fetch(`${API_BASE_URL}/todos`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
             },
-            body: JSON.stringify({ text }),
+            body: JSON.stringify({ text, shared_with_admin: sharedWithAdmin }),
         });
         return handleResponse<Todo>(response);
     },
@@ -112,7 +117,7 @@ export const api = {
         return data.todos;
     },
 
-    async updateUserTodo(userId: string, todoId: string, updates: { status: TodoStatus }): Promise<void> {
+    async updateUserTodo(userId: string, todoId: string, updates: { status?: TodoStatus; hidden_from_user?: boolean }): Promise<void> {
         const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/todos/${todoId}`, {
             method: "PUT",
             headers: {
@@ -121,6 +126,17 @@ export const api = {
             body: JSON.stringify(updates),
         });
         await handleResponse<{ success: boolean }>(response);
+    },
+
+    async createUserTodo(userId: string, text: string, hiddenFromUser: boolean = false): Promise<Todo> {
+        const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/todos`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ text, hidden_from_user: hiddenFromUser }),
+        });
+        return handleResponse<Todo>(response);
     },
 
     async createDefaultTask(text: string): Promise<Todo> {

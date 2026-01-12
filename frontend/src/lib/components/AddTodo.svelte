@@ -1,16 +1,19 @@
 <script lang="ts">
-  import { api } from "../api";
+  import { api, type User } from "../api";
   import { createEventDispatcher } from "svelte";
 
+  export let user: User | null = null;
   const dispatch = createEventDispatcher();
   let text = "";
+  let hideFromAdmin = false;
   const LIMIT = 200;
 
   async function addTodo() {
     if (!text.trim() || text.length > LIMIT) return;
     try {
-      await api.createTodo(text);
+      await api.createTodo(text, !hideFromAdmin);
       text = "";
+      hideFromAdmin = false; // Reset to default (shared)
       dispatch("added");
     } catch (e) {
       console.error(e);
@@ -43,15 +46,14 @@
     </div>
 
     <div class="flex items-center justify-between">
-      <p class="text-sm text-slate-400 font-medium">
-        {#if text.length === 0}
-          Plan your day ahead
-        {:else if charsLeft < 0}
-          <span class="text-red-500">Message is too long</span>
-        {:else}
-          <span class="text-indigo-500">Ready to save</span>
+      <div class="flex items-center space-x-4">
+        {#if user && user.role !== 'admin'}
+          <label class="flex items-center gap-2 cursor-pointer select-none px-2 rounded hover:bg-slate-50 transition-colors">
+            <input type="checkbox" bind:checked={hideFromAdmin} class="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500 border-slate-300" />
+            <span class="text-xs font-medium text-slate-500">Hide from Admin</span>
+          </label>
         {/if}
-      </p>
+      </div>
       
       <button
         type="submit"
@@ -67,4 +69,3 @@
     </div>
   </form>
 </div>
-

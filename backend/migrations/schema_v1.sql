@@ -27,8 +27,17 @@ CREATE TABLE IF NOT EXISTS todos (
     user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
     created_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
     is_default_task BOOLEAN NOT NULL DEFAULT false,
-    shared_with_admin BOOLEAN NOT NULL DEFAULT false
+    shared_with_admin BOOLEAN NOT NULL DEFAULT false,
+    hidden_from_user BOOLEAN NOT NULL DEFAULT false
 );
+
+-- Add column if it doesn't exist (for existing databases)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='todos' AND column_name='hidden_from_user') THEN
+        ALTER TABLE todos ADD COLUMN hidden_from_user BOOLEAN NOT NULL DEFAULT false;
+    END IF;
+END $$;
 
 -- Junction table for per-user state of default tasks
 CREATE TABLE IF NOT EXISTS user_todo_state (

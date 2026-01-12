@@ -1,9 +1,11 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { api, type Todo } from "../api";
+  import { api, type Todo, type User } from "../api";
   import TodoItem from "./TodoItem.svelte";
   import AddTodo from "./AddTodo.svelte";
   import { flip } from "svelte/animate";
+
+  export let user: User | null = null;
 
   let todos: Todo[] = [];
   let loading = true;
@@ -118,7 +120,7 @@
     </div>
   </header>
   
-  <AddTodo on:added={fetchTodos} />
+  <AddTodo {user} on:added={fetchTodos} />
 
   {#if loading}
     <div class="flex flex-col items-center justify-center py-20 space-y-4">
@@ -157,4 +159,3 @@
     </p>
   {/if}
 </div>
-

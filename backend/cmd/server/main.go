@@ -51,6 +51,7 @@ func main() {
 	mux.HandleFunc("PUT /api/admin/todos/{id}", adminMw(adminHandler.UpdateAdminTodo))
 	mux.HandleFunc("DELETE /api/admin/todos/{id}", adminMw(adminHandler.DeleteAdminTodo))
 	mux.HandleFunc("GET /api/admin/users/{userId}/todos", adminMw(adminHandler.ListUserTodos))
+	mux.HandleFunc("POST /api/admin/users/{userId}/todos", adminMw(adminHandler.CreateUserTodo))
 	mux.HandleFunc("PUT /api/admin/users/{userId}/todos/{todoId}", adminMw(adminHandler.UpdateUserTodo))
 
 	// Serve static frontend files

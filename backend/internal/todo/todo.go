@@ -19,6 +19,7 @@ type Todo struct {
 	CreatedByUserID *string   `json:"created_by_user_id,omitempty"`
 	IsDefaultTask   bool      `json:"is_default_task"`
 	SharedWithAdmin bool      `json:"shared_with_admin"`
+	HiddenFromUser  bool      `json:"hidden_from_user"`
 }
 
 type Handler struct {
@@ -45,11 +46,9 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userRole, _ := r.Context().Value("user_role").(string)
-
-	// Check if we should exclude admin todos (for admin's personal todo view)
-	// Admins should only see their personal todos in this view ("My Todos") unless configured otherwise.
-	excludeAdminTodos := r.URL.Query().Get("exclude_admin_todos") == "true" || userRole == "admin"
+	// Check if this is explicitly requested (e.g. for some future use case), but default to false.
+	// We want Admins to see global default tasks in their personal view as well, acting as "normal users".
+	excludeAdminTodos := r.URL.Query().Get("exclude_admin_todos") == "true"
 
 	var query string
 	if excludeAdminTodos {
@@ -63,7 +62,8 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 				t.position,
 				t.created_by_user_id, 
 				t.is_default_task,
-				t.shared_with_admin
+				t.shared_with_admin,
+				t.hidden_from_user
 			FROM todos t
 			WHERE t.user_id = $1 AND t.is_default_task = false
 			ORDER BY position ASC, created DESC 
@@ -87,10 +87,11 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 				END as position,
 				t.created_by_user_id, 
 				t.is_default_task,
-				t.shared_with_admin
+				t.shared_with_admin,
+				t.hidden_from_user
 			FROM todos t
 			LEFT JOIN user_todo_state uts ON t.id = uts.todo_id AND uts.user_id = $1 AND t.is_default_task = true
-			WHERE t.user_id = $1 OR t.is_default_task = true
+			WHERE (t.user_id = $1 OR t.is_default_task = true) AND t.hidden_from_user = false
 			ORDER BY position ASC, created DESC 
 			LIMIT 100
 		`
@@ -106,7 +107,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	var todos []Todo
 	for rows.Next() {
 		var t Todo
-		if err := rows.Scan(&t.ID, &t.Text, &t.Status, &t.Created, &t.Position, &t.CreatedByUserID, &t.IsDefaultTask, &t.SharedWithAdmin); err != nil {
+		if err := rows.Scan(&t.ID, &t.Text, &t.Status, &t.Created, &t.Position, &t.CreatedByUserID, &t.IsDefaultTask, &t.SharedWithAdmin, &t.HiddenFromUser); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -133,7 +134,8 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	// userRole, _ := r.Context().Value("user_role").(string)
 
 	var req struct {
-		Text string `json:"text"`
+		Text            string `json:"text"`
+		SharedWithAdmin *bool  `json:"shared_with_admin"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid json", http.StatusBadRequest)
@@ -156,7 +158,12 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	// This endpoint is for PERSONAL todos only.
 	// Admin (Global, Default) todos are created via the Admin API.
 	isDefaultTask := false
-	sharedWithAdmin := false // Personal todos are private by default
+
+	// Default to shared (true) unless explicitly set to false
+	sharedWithAdmin := true
+	if req.SharedWithAdmin != nil {
+		sharedWithAdmin = *req.SharedWithAdmin
+	}
 
 	// Get min position for this user to put at top
 	var minPos float64
@@ -272,6 +279,20 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		// For personal todos, update all fields
+		// Prevent user from unsharing tasks created by admin
+		var createdBy *string
+		err := h.db.QueryRow(r.Context(), `SELECT created_by_user_id FROM todos WHERE id=$1`, id).Scan(&createdBy)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		// If user didn't create it (and createdBy is not null), they can't change sharing status
+		if req.SharedWithAdmin != nil && createdBy != nil && *createdBy != userID {
+			http.Error(w, "forbidden: cannot change sharing status of admin-assigned task", http.StatusForbidden)
+			return
+		}
+
 		// Build dynamic query
 		query := "UPDATE todos SET "
 		var args []interface{}

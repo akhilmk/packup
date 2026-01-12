@@ -78,7 +78,7 @@
       {#if user.role === 'admin' && showAdminDashboard}
         <AdminDashboard />
       {:else}
-        <TodoList />
+        <TodoList {user} />
       {/if}
     </div>
   {:else}

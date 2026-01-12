@@ -126,10 +126,37 @@
         // Refresh list
         await loadUserTodos(selectedUser);
       } else {
-        alert("Admins can only change status of default tasks, not personal shared tasks.");
+        alert("Admins cannot change status of personal tasks.");
       }
     } catch (e) {
       console.error("Failed to update user todo status", e);
+    }
+  }
+
+  // Admin user task creation
+  let newUserTodoText = "";
+  let newUserTodoHidden = false;
+
+  async function handleCreateUserTodo() {
+    if (!newUserTodoText.trim() || !selectedUser) return;
+
+    try {
+      await api.createUserTodo(selectedUser.id, newUserTodoText, newUserTodoHidden);
+      newUserTodoText = "";
+      newUserTodoHidden = false;
+      await loadUserTodos(selectedUser);
+    } catch (e) {
+      console.error("Failed to create user todo", e);
+    }
+  }
+
+  async function toggleUserTodoHidden(todo: Todo) {
+    if (!selectedUser) return;
+    try {
+      await api.updateUserTodo(selectedUser.id, todo.id, { hidden_from_user: !todo.hidden_from_user });
+      await loadUserTodos(selectedUser);
+    } catch (e) {
+      console.error("Failed to toggle hidden status", e);
     }
   }
 </script>
@@ -346,6 +373,29 @@
       </div>
     </div>
 
+    <!-- Add Task for User -->
+    <div class="glass-card rounded-2xl p-6 mb-6">
+      <h3 class="text-lg font-bold text-slate-800 mb-4">Add Task for {selectedUser.name}</h3>
+      <form on:submit|preventDefault={handleCreateUserTodo} class="flex gap-3">
+        <input
+          bind:value={newUserTodoText}
+          placeholder="Enter task text..."
+          maxlength="200"
+          class="flex-1 px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+        />
+        <label class="flex items-center gap-2 cursor-pointer select-none px-2 rounded hover:bg-slate-50">
+          <input type="checkbox" bind:checked={newUserTodoHidden} class="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500" />
+          <span class="text-sm text-slate-600">Hide from user</span>
+        </label>
+        <button
+          type="submit"
+          class="px-6 py-2 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition-colors"
+        >
+          Add
+        </button>
+      </form>
+    </div>
+
     <div class="glass-card rounded-3xl overflow-hidden border-border divide-y divide-gray-50">
       {#if userTodos.length === 0}
         <div class="p-12 text-center">
@@ -395,11 +445,37 @@
                 <span class="inline-flex items-center ml-2 text-[10px] font-bold tracking-wider text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-100 uppercase align-middle transform -translate-y-0.5">
                   Shared
                 </span>
+                {#if todo.hidden_from_user}
+                  <span class="inline-flex items-center ml-1 text-[10px] font-bold tracking-wider text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200 uppercase align-middle transform -translate-y-0.5">
+                    Hidden from User
+                  </span>
+                {/if}
               {/if}
             </span>
-            <span class="text-xs text-slate-400">
-              {new Date(todo.created).toLocaleDateString()}
-            </span>
+            <div class="flex items-center gap-2">
+              {#if !todo.is_default_task}
+                <button 
+                  on:click={() => toggleUserTodoHidden(todo)}
+                  class="p-1 rounded hover:bg-slate-100 text-slate-400 hover:text-indigo-600"
+                  title={todo.hidden_from_user ? "Show to user" : "Hide from user"}
+                >
+                  {#if todo.hidden_from_user}
+                   <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                      <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                  {:else}
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                      <line x1="1" y1="1" x2="23" y2="23"></line>
+                    </svg>
+                  {/if}
+                </button>
+              {/if}
+              <span class="text-xs text-slate-400">
+                {new Date(todo.created).toLocaleDateString()}
+              </span>
+            </div>
           </div>
         {/each}
       {/if}

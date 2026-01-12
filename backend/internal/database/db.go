@@ -78,9 +78,10 @@ func ensureSchema(ctx context.Context, db *pgxpool.Pool) error {
 	}
 
 	// If tables already exist, skip schema loading
+	// If tables already exist, we still want to run the schema to ensure new columns/tables are added.
+	// The schema file should be idempotent (using IF NOT EXISTS).
 	if exists {
-		log.Println("Schema already exists, skipping migration")
-		return nil
+		log.Println("Schema loaded previously, but running again to ensure updates...")
 	}
 
 	// Try to find and load schema_v1.sql from various paths

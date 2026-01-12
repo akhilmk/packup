@@ -76,7 +76,7 @@
 
 <div 
   transition:slide={{ duration: 300 }}
-  class="flex items-center gap-4 p-4 bg-white border-b border-gray-50 last:border-0 hover:bg-indigo-50/30 transition-all group overflow-hidden"
+  class="relative flex items-center gap-4 p-4 bg-white border-b border-gray-50 last:border-0 hover:bg-indigo-50/30 transition-all group hover:z-10"
 >
   <!-- Status Cycle Button -->
   <button 

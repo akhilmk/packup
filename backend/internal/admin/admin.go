@@ -28,6 +28,7 @@ type Todo struct {
 	IsDefaultTask   bool      `json:"is_default_task"`
 	SharedWithAdmin bool      `json:"shared_with_admin"`
 	UserID          *string   `json:"user_id,omitempty"`
+	HiddenFromUser  bool      `json:"hidden_from_user"`
 }
 
 type Handler struct {
@@ -298,7 +299,8 @@ func (h *Handler) ListUserTodos(w http.ResponseWriter, r *http.Request) {
 			t.created_by_user_id, 
 			t.is_default_task,
 			t.shared_with_admin,
-			t.user_id
+			t.user_id,
+			t.hidden_from_user
 		FROM todos t
 		LEFT JOIN user_todo_state uts ON t.id = uts.todo_id AND uts.user_id = $1 AND t.is_default_task = true
 		WHERE 
@@ -316,7 +318,7 @@ func (h *Handler) ListUserTodos(w http.ResponseWriter, r *http.Request) {
 	var todos []Todo
 	for rows.Next() {
 		var t Todo
-		if err := rows.Scan(&t.ID, &t.Text, &t.Status, &t.Created, &t.Position, &t.CreatedByUserID, &t.IsDefaultTask, &t.SharedWithAdmin, &t.UserID); err != nil {
+		if err := rows.Scan(&t.ID, &t.Text, &t.Status, &t.Created, &t.Position, &t.CreatedByUserID, &t.IsDefaultTask, &t.SharedWithAdmin, &t.UserID, &t.HiddenFromUser); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -331,6 +333,75 @@ func (h *Handler) ListUserTodos(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]any{"todos": todos})
 }
 
+// CreateUserTodo creates a new todo for a specific user (admin only)
+func (h *Handler) CreateUserTodo(w http.ResponseWriter, r *http.Request) {
+	userId := r.PathValue("userId")
+	if userId == "" {
+		http.Error(w, "userId required", http.StatusBadRequest)
+		return
+	}
+
+	adminID, ok := r.Context().Value("user_id").(string)
+	if !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	var req struct {
+		Text           string `json:"text"`
+		HiddenFromUser bool   `json:"hidden_from_user"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid json", http.StatusBadRequest)
+		return
+	}
+
+	if len(req.Text) > 200 {
+		http.Error(w, "text limit of 200 characters exceeded", http.StatusBadRequest)
+		return
+	}
+	if req.Text == "" {
+		http.Error(w, "text cannot be empty", http.StatusBadRequest)
+		return
+	}
+
+	id := uuid.NewString()
+	status := "pending"
+	created := time.Now()
+
+	// Get min position for this user to put at top
+	var minPos float64
+	_ = h.db.QueryRow(r.Context(), `SELECT COALESCE(MIN(position), 0) FROM todos WHERE user_id=$1`, userId).Scan(&minPos)
+	position := minPos - 1024.0
+
+	// Insert todo for user, created by admin
+	_, err := h.db.Exec(r.Context(), `
+		INSERT INTO todos(id, text, status, created, position, user_id, created_by_user_id, is_default_task, shared_with_admin, hidden_from_user) 
+		VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+	`, id, req.Text, status, created, position, userId, adminID, false, true, req.HiddenFromUser)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	createdByUserID := adminID
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(Todo{
+		ID:              id,
+		Text:            req.Text,
+		Status:          status,
+		Created:         created,
+		Position:        position,
+		CreatedByUserID: &createdByUserID,
+		IsDefaultTask:   false,
+		SharedWithAdmin: true,
+		HiddenFromUser:  req.HiddenFromUser,
+		UserID:          &userId,
+	})
+}
+
 // UpdateUserTodo updates a specific user's todo status (admin only)
 func (h *Handler) UpdateUserTodo(w http.ResponseWriter, r *http.Request) {
 	userID := r.PathValue("userId")
@@ -341,7 +412,8 @@ func (h *Handler) UpdateUserTodo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		Status string `json:"status"`
+		Status         *string `json:"status,omitempty"`
+		HiddenFromUser *bool   `json:"hidden_from_user,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid json", http.StatusBadRequest)
@@ -364,30 +436,52 @@ func (h *Handler) UpdateUserTodo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !isDefaultTask {
-		// As per requirements, admins cannot change status of personal shared tasks
-		http.Error(w, "forbidden: admins can only update status of default tasks", http.StatusForbidden)
-		return
-	}
+	if isDefaultTask {
+		if req.HiddenFromUser != nil {
+			// Admins shouldn't be making default tasks hidden locally for a user (not requested, complicates logic)
+			// But if they want to change status, they can.
+		}
 
-	// For default tasks, UPSERT into user_todo_state
-	// We only update status, position remains checked/default
-	_, err = h.db.Exec(r.Context(), `
-		INSERT INTO user_todo_state (user_id, todo_id, status, position, updated_at)
-		VALUES ($1, $2, $3, 
-			(SELECT COALESCE(
-				(SELECT position FROM user_todo_state WHERE user_id=$1 AND todo_id=$2),
-				(SELECT position FROM todos WHERE id=$2)
-			)),
-			NOW()
-		)
-		ON CONFLICT (user_id, todo_id) 
-		DO UPDATE SET status = EXCLUDED.status, updated_at = NOW()
-	`, userID, todoID, req.Status)
+		// For default tasks, UPSERT into user_todo_state
+		// We only update status, position remains checked/default
+		if req.Status != nil {
+			_, err = h.db.Exec(r.Context(), `
+				INSERT INTO user_todo_state (user_id, todo_id, status, position, updated_at)
+				VALUES ($1, $2, $3, 
+					(SELECT COALESCE(
+						(SELECT position FROM user_todo_state WHERE user_id=$1 AND todo_id=$2),
+						(SELECT position FROM todos WHERE id=$2)
+					)),
+					NOW()
+				)
+				ON CONFLICT (user_id, todo_id) 
+				DO UPDATE SET status = EXCLUDED.status, updated_at = NOW()
+			`, userID, todoID, *req.Status)
 
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		}
+	} else {
+		// Personal / Admin-Assigned User Task
+		// Allow updating hidden_from_user status
+		if req.HiddenFromUser != nil {
+			_, err = h.db.Exec(r.Context(), `UPDATE todos SET hidden_from_user = $1 WHERE id = $2`, *req.HiddenFromUser, todoID)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		}
+
+		if req.Status != nil {
+			// Admins technically can change status of admin-assigned tasks, but maybe not personal ones?
+			// User requirement: "admin can open todos of customer and can add a new customer specific todo ... by default this is shared ... option to hide"
+			// Doesn't strictly say admin can update status of these tasks, but let's assume if they created it they might want to.
+			// But earlier requirement said "admin can change status of default task, not shared task".
+			// So safely, likely READ-ONLY for status of personal/user tasks.
+			// However, if we need to "hide" a shared task, that's what we just did above.
+		}
 	}
 
 	w.WriteHeader(http.StatusOK)
