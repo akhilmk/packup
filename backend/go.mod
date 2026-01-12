@@ -1,4 +1,4 @@
-module github.com/akhilmk/itinera
+module github.com/akhilmk/packup
 
 go 1.25.5
 
