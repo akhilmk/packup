@@ -143,7 +143,10 @@
         // Refresh list
         await loadUserTodos(selectedUser);
       } else {
-        alert("Admins cannot change status of personal tasks.");
+        // Personal or Admin-Assigned Task
+        // Admin can update status for ANY task (Shared Responsibility)
+        await api.updateUserTodo(selectedUser.id, todo.id, { status: nextStatus });
+        await loadUserTodos(selectedUser);
       }
     } catch (e) {
       console.error("Failed to update user todo status", e);
@@ -469,7 +472,7 @@
       {:else}
         {#each userTodos as todo}
           <div class="p-4 flex items-center gap-4">
-            <!-- Status Indicator / Initial for Admin View -->
+             <!-- Status Indicator / Initial for Admin View -->
             {#if todo.is_default_task}
               <StatusIndicator 
                 status={todo.status} 
@@ -477,10 +480,14 @@
                 on:click={() => handleCycleUserTodoStatus(todo)}
               />
             {:else}
-               <!-- Read-only indicator for shared personal tasks -->
+               <!-- 
+                 Shared Task (User or Admin Created)
+                 Status is Shared Responsibility: Always Clickable for Admin
+               -->
                <StatusIndicator 
                  status={todo.status} 
-                 clickable={false}
+                 clickable={true}
+                 on:click={() => handleCycleUserTodoStatus(todo)}
                />
             {/if}
             {#if editingUserTodoId === todo.id}
@@ -517,19 +524,24 @@
                 {todo.text}
                 {#if todo.is_default_task}
                   <span class="inline-flex items-center ml-2 text-[10px] font-bold tracking-wider text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-100 uppercase align-middle transform -translate-y-0.5">
-                    Default Task
+                    Default
                   </span>
                 {/if}
                 {#if !todo.is_default_task && todo.user_id === selectedUser?.id}
                   {#if todo.created_by_user_id === selectedUser?.id}
-                    <!-- User-created task (shared with admin) -->
+                    <!-- User-created task -->
+                    <!-- Admin sees 'User' + 'Shared' because Admin is viewing User's task -->
                     <span class="inline-flex items-center ml-2 text-[10px] font-bold tracking-wider text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-100 uppercase align-middle transform -translate-y-0.5">
-                      User Created
+                      User
+                    </span>
+                    <span class="inline-flex items-center ml-1 text-[10px] font-bold tracking-wider text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100 uppercase align-middle transform -translate-y-0.5">
+                      Shared
                     </span>
                   {:else}
                     <!-- Admin-created task for user -->
+                    <!-- Admin sees 'Admin' (Creator is Viewer) -> No Shared label -->
                     <span class="inline-flex items-center ml-2 text-[10px] font-bold tracking-wider text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100 uppercase align-middle transform -translate-y-0.5">
-                      Admin Shared
+                      Admin
                     </span>
                     {#if todo.hidden_from_user}
                       <span class="inline-flex items-center ml-1 text-[10px] font-bold tracking-wider text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200 uppercase align-middle transform -translate-y-0.5">

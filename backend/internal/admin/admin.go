@@ -458,6 +458,17 @@ func (h *Handler) UpdateUserTodo(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
+
+		// Allow status update for any user task (Shared Responsibility)
+		// Both Admin and User can update status of shared tasks.
+		if req.Status != nil {
+			// Update status in todos table
+			_, err = h.db.Exec(r.Context(), `UPDATE todos SET status = $1 WHERE id = $2`, *req.Status, todoID)
+			if err != nil {
+				httputil.InternalError(w, err.Error())
+				return
+			}
+		}
 	}
 
 	httputil.WriteSuccess(w)

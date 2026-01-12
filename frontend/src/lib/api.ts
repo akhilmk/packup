@@ -39,8 +39,12 @@ async function handleResponse<T>(response: Response): Promise<T> {
 }
 
 export const api = {
-    async listTodos(): Promise<Todo[]> {
-        const response = await fetch(`${API_BASE_URL}/todos`);
+    async listTodos(options?: { excludeAdminTodos?: boolean }): Promise<Todo[]> {
+        let url = `${API_BASE_URL}/todos`;
+        if (options?.excludeAdminTodos) {
+            url += `?exclude_admin_todos=true`;
+        }
+        const response = await fetch(url);
         const data = await handleResponse<ListTodosResponse>(response);
         return data.todos;
     },

@@ -11,13 +11,14 @@
   let loading = true;
   let filter: 'all' | 'pending' | 'in-progress' | 'done' = 'all';
 
-  // For admin "My Todos", exclude default tasks from the count
-  $: displayTodos = todos.filter(t => !(user?.role === 'admin' && t.is_default_task));
+  // For admin "My Todos", now using server-side filtering
+  $: displayTodos = todos;
   $: filteredTodos = filter === 'all' ? displayTodos : displayTodos.filter(t => t.status === filter);
 
   async function fetchTodos() {
     try {
-      todos = await api.listTodos();
+      const options = user?.role === 'admin' ? { excludeAdminTodos: true } : {};
+      todos = await api.listTodos(options);
     } catch (e) {
       console.error(e);
     } finally {

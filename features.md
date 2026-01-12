@@ -3,26 +3,48 @@
 
 * ADMIN SIDE
 - admin page contain Users tab, Default Task tab, and My Todos page
+
  ** Users tab
- - admin can see all users in his homepage users tab, by clicking each user -> admin can see each users todo status and its progress.
- - admin can add new custom task under a user, this is shared by default and admin can hide also as admin visibility
-  - if admin added a custom task under a user, have a option to edit, delete this task for admin only, other default tasks can be edit deleted from default task page
-  - all adminshared task delete, edit permission will be only for admin, customer can only update progress of shared task
-- shared task can have label like admin shared or something 
---  admin shared todo with user, with label 'custom task' with all permission for admin, user can only update progress
-
-
-** Default Task tab
-- admin can add default tasks, this will go list under users with label 'default task'
-- admin can edit, update, delete this task from Default task menu only.
-
-** Admin My Todos 
-- admin will have its own todo page to manage his todo items , unrelated to any user
-- he can add, edit, delete task, default task should not come here
-
-USER/CUSTOMER SIDE
--users login show all default task todo items added by admin
-- users can edit progress of custom task no other oprion
-- user can add new todo for him, by default admin can see this through admin users list-> user todo way, user can hide it if needed by checkbox, user created and shared label can be shown
-  - all user created and shared task delete edit change progress permission will be only for user, admin can only see no edit
-  - admin shared todo task display in user as admin created label, but do not show the option to hide for user
+- admin can see all the users in his homepage's users tab,
+- admin can click on user's 'View Todos', admin can see that users todo status and its progress.
+- admin can add new custom task under a user, this is shared by default and admin can hide also for admin only visibility
+- admin added task can have label like 'admin'
+- admin added custom task under user will be visible to user, there will be label 'shared' along with 'admin' label
+- admin added a custom task under a user, have a option to edit, delete , change progress - for ADMIN
+- admin added tasks, customer can only update progress of shared task.
+** Labels & Visibility Rules
+ - Three distinct type labels: 'default', 'admin', 'user'
+ - One status label: 'shared'
+ - 'Shared' label logic: Shows only when the viewer is NOT the creator of the todo item.
+   - Example 1: User viewing Admin-created task -> Shows 'admin' + 'shared'
+   - Example 2: Admin viewing User-created task -> Shows 'user' + 'shared'
+   - Example 3: User viewing User-created task -> Shows 'user' (No 'shared' label)
+   - Example 4: Admin viewing Admin-created task (assigned to user) -> Shows 'admin'
+### Custom Tasks (User Specific)
+*   **Concept**:
+    *   **User Created**: Users create their own tasks. By default, these are "Personal". Users can choose to "Share with Admin".
+    *   **Admin Created**: Admins can create tasks *for* a specific user. These are automatically "Shared".
+*   **Rules**:
+    *   **Status (Progress)**: **Shared Responsibility**. Both the Admin and the User can update the status (Pending <-> In Progress <-> Done) of *any* shared task, regardless of who created it. This reflects a collaborative effort.
+    *   **Edit (Text) / Delete**: **Creator Only**.
+        *   If **User** created it: Only User can edit text or delete. Admin is Read-Only for text/existence.
+        *   If **Admin** created it: Only Admin can edit text or delete. User cannot delete (but might be able to hide it, see below).
+    *   **Visibility**:
+        *   **Admin View**:
+            *   User-created (Shared): Labeled "User" + "Shared". Status: Editable. Text: Read-only.
+            *   Admin-created: Labeled "Admin". Status: Editable. Text: Editable.
+        *   **User View**:
+            *   User-created: Standard view.
+            *   Admin-created: Labeled "Admin" + "Shared". Status: Editable. Text: Read-only.
+    *   **Hiding**:
+        *    Admin can "Hide" an Admin-created task from the User (e.g., drafting).
+        *    User can "Hide" an Admin-created task from their own view? (Requirement "hide for user" usually implies Admin hiding it from User, or User hiding it from themselves? Current impl allows Admin to toggle `hidden_from_user` on Admin-created tasks).
+ 
+ USER/CUSTOMER SIDE
+ - users login show all 'default' labled tasks, 'admin' labled tasks.
+ - user can make only progress change for 'default' and 'admin' task.
+ - user can add new task under him, lablel will be 'user', he can edit, delete, change progress for his task.
+ - user can hide his task (unshare). If shared, Admin sees 'user' + 'shared'.
+ - admin added custom todos display as 'admin' + 'shared' in user view.
+   - Both User and Admin can update the progress of these tasks.
+ - all 'user' created task's deletion/edit permitted only for user. Admin can only view (and see 'shared').
