@@ -61,8 +61,19 @@
 
 <div class="max-w-2xl mx-auto p-4 md:p-8">
   <header class="mb-10 text-center">
-    <h1 class="text-4xl font-black text-slate-800 tracking-tight mb-2">
-      Daily Focus
+    <!-- Itinera Icon -->
+    <div class="mb-4 flex justify-center">
+      <div class="w-16 h-16 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 11l1 1 2-2" />
+        </svg>
+      </div>
+    </div>
+    
+    <h1 class="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600 tracking-tight mb-2">
+      Itinera
     </h1>
     <p class="text-slate-500 font-medium">
       {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}

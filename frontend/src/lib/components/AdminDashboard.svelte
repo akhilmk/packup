@@ -62,7 +62,20 @@
 
 <div class="max-w-6xl mx-auto p-4 md:p-8">
   <header class="mb-8">
-    <h1 class="text-3xl font-black text-slate-800 mb-6">Admin Dashboard</h1>
+    <!-- Itinera Icon and Title -->
+    <div class="flex items-center gap-4 mb-6">
+      <div class="w-12 h-12 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 11l1 1 2-2" />
+        </svg>
+      </div>
+      <div>
+        <h1 class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600">Itinera</h1>
+        <p class="text-sm text-slate-500 font-medium">Admin Dashboard</p>
+      </div>
+    </div>
     
     <!-- View Tabs -->
     <div class="flex gap-2 border-b border-slate-200">
