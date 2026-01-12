@@ -89,6 +89,25 @@ export const api = {
             method: "POST",
         });
         if (!response.ok) throw new Error("Logout failed");
+    },
+
+    // Admin endpoints
+    async listUsers(): Promise<User[]> {
+        const response = await fetch(`${API_BASE_URL}/admin/users`);
+        const data = await handleResponse<{ users: User[] }>(response);
+        return data.users;
+    },
+
+    async listAdminTodos(): Promise<Todo[]> {
+        const response = await fetch(`${API_BASE_URL}/admin/todos`);
+        const data = await handleResponse<{ todos: Todo[] }>(response);
+        return data.todos;
+    },
+
+    async listUserTodos(userId: string): Promise<Todo[]> {
+        const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/todos`);
+        const data = await handleResponse<{ todos: Todo[] }>(response);
+        return data.todos;
     }
 };
 

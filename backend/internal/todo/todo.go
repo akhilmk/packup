@@ -44,10 +44,25 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Return user's own todos + all admin todos
+	// For admin todos, use user-specific status/position from user_todo_state if exists
 	rows, err := h.db.Query(r.Context(), `
-		SELECT id, text, status, created, position, created_by_user_id, is_admin_todo 
-		FROM todos 
-		WHERE user_id=$1 OR is_admin_todo=true 
+		SELECT 
+			t.id, 
+			t.text, 
+			CASE 
+				WHEN t.is_admin_todo THEN COALESCE(uts.status, t.status)
+				ELSE t.status
+			END as status,
+			t.created, 
+			CASE 
+				WHEN t.is_admin_todo THEN COALESCE(uts.position, t.position)
+				ELSE t.position
+			END as position,
+			t.created_by_user_id, 
+			t.is_admin_todo 
+		FROM todos t
+		LEFT JOIN user_todo_state uts ON t.id = uts.todo_id AND uts.user_id = $1 AND t.is_admin_todo = true
+		WHERE t.user_id = $1 OR t.is_admin_todo = true 
 		ORDER BY position ASC, created DESC 
 		LIMIT 100
 	`, userID)
@@ -218,24 +233,58 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Update the todo
-	_, err = h.db.Exec(r.Context(), `
-		UPDATE todos 
-		SET text = CASE WHEN $2 = '' THEN text ELSE $2 END, 
-		    status = CASE WHEN $3 = '' THEN status ELSE $3 END 
-		WHERE id=$1`, id, req.Text, req.Status)
+	// Handle update based on todo type
+	if isAdminTodo {
+		// For admin todos, update user_todo_state (per-user status)
+		// Only update status if provided (text updates not allowed for admin todos)
+		if req.Status != "" {
+			_, err = h.db.Exec(r.Context(), `
+				INSERT INTO user_todo_state (user_id, todo_id, status, position, updated_at)
+				VALUES ($1, $2, $3, 
+					(SELECT COALESCE(position, 0) FROM user_todo_state WHERE user_id=$1 AND todo_id=$2),
+					now())
+				ON CONFLICT (user_id, todo_id) 
+				DO UPDATE SET status = $3, updated_at = now()
+			`, userID, id, req.Status)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		}
+	} else {
+		// For personal todos, update the todos table
+		_, err = h.db.Exec(r.Context(), `
+			UPDATE todos 
+			SET text = CASE WHEN $2 = '' THEN text ELSE $2 END, 
+			    status = CASE WHEN $3 = '' THEN status ELSE $3 END 
+			WHERE id=$1
+		`, id, req.Text, req.Status)
 
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
 
+	// Fetch and return updated todo with user-specific state
 	var t Todo
 	if err := h.db.QueryRow(r.Context(), `
-		SELECT id, text, status, created, position, created_by_user_id, is_admin_todo 
-		FROM todos 
-		WHERE id=$1
-	`, id).Scan(&t.ID, &t.Text, &t.Status, &t.Created, &t.Position, &t.CreatedByUserID, &t.IsAdminTodo); err != nil {
+		SELECT 
+			t.id, t.text, 
+			CASE 
+				WHEN t.is_admin_todo THEN COALESCE(uts.status, t.status)
+				ELSE t.status
+			END as status,
+			t.created, 
+			CASE 
+				WHEN t.is_admin_todo THEN COALESCE(uts.position, t.position)
+				ELSE t.position
+			END as position,
+			t.created_by_user_id, t.is_admin_todo 
+		FROM todos t
+		LEFT JOIN user_todo_state uts ON t.id = uts.todo_id AND uts.user_id = $2 AND t.is_admin_todo = true
+		WHERE t.id=$1
+	`, id, userID).Scan(&t.ID, &t.Text, &t.Status, &t.Created, &t.Position, &t.CreatedByUserID, &t.IsAdminTodo); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -272,15 +321,40 @@ func (h *Handler) Reorder(w http.ResponseWriter, r *http.Request) {
 
 	for i, id := range req.IDs {
 		pos := float64(i) * 1024.0
-		// Update position for todos that belong to user OR are admin todos
-		_, err := tx.Exec(r.Context(), `
-			UPDATE todos 
-			SET position = $1 
-			WHERE id = $2 AND (user_id = $3 OR is_admin_todo = true)
-		`, pos, id, userID)
+
+		// Check if this is an admin todo
+		var isAdminTodo bool
+		err := tx.QueryRow(r.Context(), `SELECT is_admin_todo FROM todos WHERE id=$1`, id).Scan(&isAdminTodo)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
+		}
+
+		if isAdminTodo {
+			// For admin todos, UPSERT into user_todo_state
+			_, err := tx.Exec(r.Context(), `
+				INSERT INTO user_todo_state (user_id, todo_id, status, position, updated_at)
+				VALUES ($1, $2, 
+					(SELECT COALESCE(status, 'pending') FROM user_todo_state WHERE user_id=$1 AND todo_id=$2),
+					$3, now())
+				ON CONFLICT (user_id, todo_id) 
+				DO UPDATE SET position = $3, updated_at = now()
+			`, userID, id, pos)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		} else {
+			// For personal todos, update todos table
+			_, err := tx.Exec(r.Context(), `
+				UPDATE todos 
+				SET position = $1 
+				WHERE id = $2 AND user_id = $3
+			`, pos, id, userID)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
 		}
 	}
 

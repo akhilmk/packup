@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/akhilmk/itinera/internal/admin"
 	"github.com/akhilmk/itinera/internal/auth"
 	"github.com/akhilmk/itinera/internal/database"
 	"github.com/akhilmk/itinera/internal/todo"
@@ -24,6 +25,7 @@ func main() {
 	// Initialize Handlers
 	authHandler := auth.NewHandler(pool)
 	todoHandler := todo.NewHandler(pool)
+	adminHandler := admin.NewHandler(pool)
 
 	mux := http.NewServeMux()
 
@@ -38,6 +40,14 @@ func main() {
 	mux.HandleFunc("PUT /api/todos/{id}", mw(todoHandler.Update))
 	mux.HandleFunc("PUT /api/todos/reorder", mw(todoHandler.Reorder))
 	mux.HandleFunc("DELETE /api/todos/{id}", mw(todoHandler.Delete))
+
+	// Register Admin routes (require admin role)
+	adminMw := func(next http.HandlerFunc) http.HandlerFunc {
+		return mw(adminHandler.RequireAdmin(next))
+	}
+	mux.HandleFunc("GET /api/admin/users", adminMw(adminHandler.ListUsers))
+	mux.HandleFunc("GET /api/admin/todos", adminMw(adminHandler.ListAdminTodos))
+	mux.HandleFunc("GET /api/admin/users/{userId}/todos", adminMw(adminHandler.ListUserTodos))
 
 	// Serve static frontend files
 	// Try multiple paths for different deployment scenarios

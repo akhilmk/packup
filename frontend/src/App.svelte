@@ -1,15 +1,21 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import TodoList from "./lib/components/TodoList.svelte";
+  import AdminDashboard from "./lib/components/AdminDashboard.svelte";
   import Login from "./lib/components/Login.svelte";
   import { api, type User } from "./lib/api";
 
   let user: User | null = null;
   let loading = true;
+  let showAdminDashboard = true; // For admins, toggle between dashboard and personal todos
 
   onMount(async () => {
     try {
       user = await api.getMe();
+      // Default to admin dashboard for admins
+      if (user.role === 'admin') {
+        showAdminDashboard = true;
+      }
     } catch (e) {
       console.log("Not authenticated");
     } finally {
@@ -40,7 +46,7 @@
     </div>
   {:else if user}
     <div class="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50/20">
-      <div class="max-w-2xl mx-auto px-4 py-4 flex justify-between items-center">
+      <div class="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
         <div class="flex items-center space-x-3 bg-white/50 backdrop-blur-sm px-3 py-1.5 rounded-full border border-white/50">
           {#if user.avatar_url}
             <img src={user.avatar_url} alt={user.name} class="w-8 h-8 rounded-full border border-indigo-100" />
@@ -51,15 +57,29 @@
           {/if}
         </div>
         
-        <button 
-          on:click={handleLogout}
-          class="text-xs font-bold text-slate-500 hover:text-indigo-600 px-3 py-1.5 rounded-lg hover:bg-white/50 transition-colors"
-        >
-          Sign Out
-        </button>
+        <div class="flex items-center gap-3">
+          {#if user.role === 'admin'}
+            <button
+              on:click={() => showAdminDashboard = !showAdminDashboard}
+              class="text-xs font-bold px-3 py-1.5 rounded-lg transition-colors {showAdminDashboard ? 'bg-indigo-100 text-indigo-700' : 'bg-white/50 text-slate-600 hover:bg-white'}"
+            >
+              {showAdminDashboard ? 'My Todos' : 'Dashboard'}
+            </button>
+          {/if}
+          <button 
+            on:click={handleLogout}
+            class="text-xs font-bold text-slate-500 hover:text-indigo-600 px-3 py-1.5 rounded-lg hover:bg-white/50 transition-colors"
+          >
+            Sign Out
+          </button>
+        </div>
       </div>
       
-      <TodoList />
+      {#if user.role === 'admin' && showAdminDashboard}
+        <AdminDashboard />
+      {:else}
+        <TodoList />
+      {/if}
     </div>
   {:else}
     <Login />
