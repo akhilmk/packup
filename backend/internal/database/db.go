@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 
@@ -45,7 +46,7 @@ func New(ctx context.Context) (*pgxpool.Pool, error) {
 			port = "5432"
 		}
 		if name == "" {
-			name = "todos"
+			name = "itinera"
 		}
 		if ssl == "" {
 			ssl = "disable"
@@ -59,6 +60,7 @@ func New(ctx context.Context) (*pgxpool.Pool, error) {
 		return nil, err
 	}
 
+	// Auto-load schema if tables don't exist
 	if err := ensureSchema(ctx, pool); err != nil {
 		pool.Close()
 		return nil, err
@@ -68,35 +70,47 @@ func New(ctx context.Context) (*pgxpool.Pool, error) {
 }
 
 func ensureSchema(ctx context.Context, db *pgxpool.Pool) error {
-	_, err := db.Exec(ctx, `
-	CREATE TABLE IF NOT EXISTS users (
-		id TEXT PRIMARY KEY,
-		google_id TEXT UNIQUE NOT NULL,
-		email TEXT UNIQUE NOT NULL,
-		name TEXT,
-		avatar_url TEXT,
-		created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-	);
+	// Check if tables exist
+	var exists bool
+	err := db.QueryRow(ctx, "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'users')").Scan(&exists)
+	if err != nil {
+		return err
+	}
 
-	CREATE TABLE IF NOT EXISTS sessions (
-		token TEXT PRIMARY KEY,
-		user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-		created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-		expires_at TIMESTAMPTZ NOT NULL
-	);
+	// If tables already exist, skip schema loading
+	if exists {
+		log.Println("Schema already exists, skipping migration")
+		return nil
+	}
 
-	CREATE TABLE IF NOT EXISTS todos (
-		id TEXT PRIMARY KEY,
-		text TEXT NOT NULL,
-		status VARCHAR(20) NOT NULL DEFAULT 'pending',
-		created TIMESTAMPTZ NOT NULL DEFAULT now(),
-		position DOUBLE PRECISION NOT NULL DEFAULT 0,
-		user_id TEXT REFERENCES users(id) ON DELETE CASCADE
-	);
-	
-	-- Migrations
-	ALTER TABLE todos ADD COLUMN IF NOT EXISTS position DOUBLE PRECISION NOT NULL DEFAULT 0;
-	ALTER TABLE todos ADD COLUMN IF NOT EXISTS user_id TEXT REFERENCES users(id) ON DELETE CASCADE;
-	`)
-	return err
+	// Try to find and load schema_v1.sql from various paths
+	schemaPaths := []string{
+		"migrations/schema_v1.sql",
+		"backend/migrations/schema_v1.sql",
+		"../migrations/schema_v1.sql",
+		"../../migrations/schema_v1.sql",
+	}
+
+	var schemaSQL []byte
+	var schemaPath string
+	for _, path := range schemaPaths {
+		if data, err := os.ReadFile(path); err == nil {
+			schemaSQL = data
+			schemaPath = path
+			break
+		}
+	}
+
+	if schemaSQL == nil {
+		return fmt.Errorf("schema_v1.sql not found in any expected location")
+	}
+
+	log.Printf("Loading schema from: %s", schemaPath)
+	_, err = db.Exec(ctx, string(schemaSQL))
+	if err != nil {
+		return fmt.Errorf("failed to execute schema: %w", err)
+	}
+
+	log.Println("Schema loaded successfully")
+	return nil
 }

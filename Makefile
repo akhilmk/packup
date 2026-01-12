@@ -1,6 +1,6 @@
 COMPOSE_FILE ?= compose.postgres-dev.yml
 DOCKER_COMPOSE ?= docker compose
-IMAGE_NAME := go-todo
+IMAGE_NAME := itinera
 
 .PHONY: db-up db-down db-logs db-shell frontend-install frontend-build \
         build-backend build-frontend build-all docker-build docker-run docker-stop \
@@ -18,7 +18,7 @@ db-logs:
 
 db-shell:
 	# open an interactive psql shell in the postgres service
-	$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) exec postgres psql -U $${DB_USER:-postgres} -d $${DB_NAME:-todos}
+	$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) exec postgres psql -U $${DB_USER:-postgres} -d $${DB_NAME:-itinera}
 
 # Frontend commands
 frontend-install:
@@ -27,19 +27,22 @@ frontend-install:
 frontend-build:
 	cd frontend && npm run build
 
-# Backend commands
-build-backend:
-	@echo "Building Go backend..."
-	cd backend && CGO_ENABLED=0 GOOS=linux go build -o ../bin/server ./cmd/server
-	@echo "✓ Backend binary created at bin/server"
-
-# Build frontend and copy to bin folder
 build-frontend: frontend-build
 	@echo "Copying frontend to bin/frontend/dist..."
 	mkdir -p bin/frontend
 	rm -rf bin/frontend/dist
 	cp -r frontend/dist bin/frontend/
 	@echo "✓ Frontend copied to bin/frontend/dist"
+
+# Backend commands
+build-backend:
+	@echo "Building Go backend..."
+	cd backend && CGO_ENABLED=0 GOOS=linux go build -o ../bin/itinera ./cmd/server
+	@echo "Copying migrations to bin/migrations..."
+	mkdir -p bin/migrations
+	cp -r backend/migrations/* bin/migrations/
+	@echo "✓ Backend binary created at bin/itinera"
+	@echo "✓ Migrations copied to bin/migrations"
 
 # Build everything (backend + frontend)
 build-all: build-backend build-frontend
@@ -54,28 +57,24 @@ docker-build: build-all
 # Run Docker container
 docker-run:
 	@echo "Starting container $(IMAGE_NAME)..."
-	-docker rm -f go-todo 2>/dev/null
+	-docker rm -f itinera 2>/dev/null
 	docker run -d \
-		--name go-todo \
+		--name itinera \
 		-p 8080:8080 \
 		--add-host=host.docker.internal:host-gateway \
 		--env-file .env.dev \
 		-e DB_HOST=host.docker.internal \
 		$(IMAGE_NAME):latest
-	@echo "✓ Container started: go-todo"
+	@echo "✓ Container started: itinera"
 	@echo "  Access at: http://localhost:8080"
 	@echo "  View logs: make docker-logs"
 
 # Stop and remove Docker container
 docker-stop:
 	@echo "Stopping container..."
-	-docker stop go-todo
-	-docker rm go-todo
+	-docker stop itinera
+	-docker rm itinera
 	@echo "✓ Container stopped and removed"
-
-# View Docker container logs
-docker-logs:
-	docker logs -f go-todo
 
 # Clean Docker images
 docker-clean:
@@ -83,10 +82,14 @@ docker-clean:
 	-docker rmi $(IMAGE_NAME):latest
 	@echo "✓ Docker images removed"
 
+# View Docker container logs
+docker-logs:
+	docker logs -f itinera
+
 # Complete release: build everything and create Docker image
 release: build-all docker-build
 	@echo "✓ Release complete!"
-	@echo "  - Binary: bin/server"
+	@echo "  - Binary: bin/itinera"
 	@echo "  - Frontend: bin/frontend/dist"
 	@echo "  - Docker: $(IMAGE_NAME):latest"
 

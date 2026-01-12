@@ -1,4 +1,4 @@
-module github.com/akhilmk/focus-flow
+module github.com/akhilmk/itinera
 
 go 1.25.5
 

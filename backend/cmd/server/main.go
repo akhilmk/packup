@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/akhilmk/focus-flow/internal/auth"
-	"github.com/akhilmk/focus-flow/internal/database"
-	"github.com/akhilmk/focus-flow/internal/todo"
+	"github.com/akhilmk/itinera/internal/auth"
+	"github.com/akhilmk/itinera/internal/database"
+	"github.com/akhilmk/itinera/internal/todo"
 )
 
 func main() {
