@@ -1,4 +1,10 @@
-COMPOSE_FILE ?= compose.postgres-dev.yml
+# Load environment variables from docker/.env.dev if it exists
+ifneq (,$(wildcard docker/.env.dev))
+    include docker/.env.dev
+    export
+endif
+
+COMPOSE_FILE ?= docker/docker-compose.dev.yml
 DOCKER_COMPOSE ?= docker compose
 IMAGE_NAME := packup
 
@@ -62,7 +68,7 @@ build-all: build-backend build-frontend
 # Build Docker image using pre-built binaries
 docker-build: build-all
 	@echo "Building Docker image $(IMAGE_NAME):latest..."
-	docker build -t $(IMAGE_NAME):latest .
+	docker build -t $(IMAGE_NAME):latest -f docker/Dockerfile .
 	@echo "✓ Docker image built: $(IMAGE_NAME):latest"
 
 # Run Docker container
@@ -73,7 +79,7 @@ docker-run:
 		--name packup \
 		-p 8080:8080 \
 		--add-host=host.docker.internal:host-gateway \
-		--env-file .env.dev \
+		--env-file docker/.env.dev \
 		-e DB_HOST=host.docker.internal \
 		$(IMAGE_NAME):latest
 	@echo "✓ Container started: packup"
@@ -104,6 +110,17 @@ release: build-all docker-build
 	@echo "  - Frontend: bin/frontend/dist"
 	@echo "  - Docker: $(IMAGE_NAME):latest"
 
+# Production commands
+prod-up:
+	$(DOCKER_COMPOSE) -f docker/docker-compose.yml --env-file docker/.env.prod up -d
+
+prod-down:
+	$(DOCKER_COMPOSE) -f docker/docker-compose.yml --env-file docker/.env.prod down
+
+docker-push: docker-build
+	docker tag $(IMAGE_NAME):latest $(DOCKER_HUB_USER)/$(IMAGE_NAME):latest
+	docker push $(DOCKER_HUB_USER)/$(IMAGE_NAME):latest
+
 # Clean build artifacts
 clean:
 	rm -rf bin/
@@ -113,10 +130,14 @@ clean:
 # Help command
 help:
 	@echo "Available commands:"
-	@echo "  make db-up           - Start PostgreSQL database"
-	@echo "  make db-down         - Stop PostgreSQL database"
+	@echo "  make db-up           - Start PostgreSQL database (local dev)"
+	@echo "  make db-down         - Stop PostgreSQL database (local dev)"
 	@echo "  make db-logs         - View database logs"
 	@echo "  make db-shell        - Open psql shell"
+	@echo ""
+	@echo "  make prod-up         - Start production deployment (Traefik + App + DB)"
+	@echo "  make prod-down       - Stop production deployment"
+	@echo "  make docker-push     - Build and push image to Docker Hub"
 	@echo ""
 	@echo "  make test             - Run backend tests"
 	@echo "  make test-coverage    - Run tests with coverage report"

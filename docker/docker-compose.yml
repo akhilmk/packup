@@ -1,0 +1,64 @@
+services:
+  packup:
+    # Build image using: make docker-build (or pull from Docker Hub)
+    image: ${DOCKER_HUB_USER:-akhilmk}/packup:latest
+    container_name: packup-app
+    restart: always
+    env_file:
+      - .env.prod
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+    depends_on:
+      postgres:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.packup.rule=Host(`${DOMAIN:-localhost}`)"
+      - "traefik.http.routers.packup.entrypoints=websecure"
+      - "traefik.http.routers.packup.tls.certresolver=myresolver"
+      - "traefik.http.services.packup.loadbalancer.server.port=8080"
+
+  postgres:
+    image: postgres:15
+    container_name: packup-postgres
+    restart: always
+    env_file:
+      - .env.prod
+    environment:
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASS}
+      - POSTGRES_DB=${DB_NAME}
+    volumes:
+      - packup-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  traefik:
+    image: traefik:v2.10
+    container_name: traefik
+    restart: always
+    command:
+      - "--api.insecure=false"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.myresolver.acme.tlschallenge=true"
+      - "--certificatesresolvers.myresolver.acme.email=${ACME_EMAIL:-admin@example.com}"
+      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
+      # Redirect HTTP to HTTPS
+      - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "../letsencrypt:/letsencrypt"
+
+volumes:
+  packup-db-data:

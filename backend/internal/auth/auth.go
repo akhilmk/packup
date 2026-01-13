@@ -90,7 +90,7 @@ func (h *Handler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
 		Expires:  time.Now().Add(24 * time.Hour),
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
-		// Secure:   true, // Uncomment in production with HTTPS
+		Secure:   os.Getenv("SESSION_SECURE") == "true",
 	})
 
 	http.Redirect(w, r, "/", http.StatusSeeOther)
