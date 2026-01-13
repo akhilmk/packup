@@ -4,40 +4,35 @@ ifneq (,$(wildcard docker/.env.dev))
     export
 endif
 
+# Configuration
 COMPOSE_FILE ?= docker/docker-compose.dev.yml
 DOCKER_COMPOSE ?= docker compose
 IMAGE_NAME := packup
+CONTAINER_NAME := packup
 
-.PHONY: db-up db-down db-logs db-shell frontend-install frontend-build \
-        build-backend build-frontend build-all docker-build docker-run docker-stop \
-        docker-logs docker-clean release clean help test
+.PHONY: db db-down db-logs db-shell \
+        frontend-install frontend-build build-backend build-frontend build-all \
+        docker run logs app-shell go-test \
+        clean docker-clean help
 
-# Test commands
-test:
-	@echo "Running backend tests..."
-	cd backend && go test -v ./...
+# --- Database Commands ---
 
-test-coverage:
-	@echo "Running backend tests with coverage..."
-	cd backend && go test -coverprofile=coverage.out ./...
-	cd backend && go tool cover -html=coverage.out -o coverage.html
-	@echo "✓ Coverage report: backend/coverage.html"
-
-# Database commands
-db-up:
+db:
+	@echo "Starting dev database..."
 	$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) up -d
 
 db-down:
+	@echo "Stopping dev database..."
 	$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) down -v
 
 db-logs:
 	$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) logs -f
 
 db-shell:
-	# open an interactive psql shell in the postgres service
 	$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) exec postgres psql -U $${DB_USER:-postgres} -d $${DB_NAME:-packup}
 
-# Frontend commands
+# --- Build Commands ---
+
 frontend-install:
 	cd frontend && npm install
 
@@ -45,115 +40,87 @@ frontend-build:
 	cd frontend && npm run build
 
 build-frontend: frontend-build
-	@echo "Copying frontend to bin/frontend/dist..."
+	@echo "Preparing frontend artifacts..."
 	mkdir -p bin/frontend
 	rm -rf bin/frontend/dist
 	cp -r frontend/dist bin/frontend/
-	@echo "✓ Frontend copied to bin/frontend/dist"
 
-# Backend commands
 build-backend:
 	@echo "Building Go backend..."
 	cd backend && CGO_ENABLED=0 GOOS=linux go build -o ../bin/packup ./cmd/server
-	@echo "Copying migrations to bin/migrations..."
+	@echo "Copying migrations..."
 	mkdir -p bin/migrations
 	cp -r backend/migrations/* bin/migrations/
-	@echo "✓ Backend binary created at bin/packup"
-	@echo "✓ Migrations copied to bin/migrations"
 
-# Build everything (backend + frontend)
 build-all: build-backend build-frontend
-	@echo "✓ Build complete! Binary and frontend are in bin/"
+	@echo "✓ All artifacts built in bin/"
 
-# Build Docker image using pre-built binaries
-docker-build: build-all
+docker: docker-clean clean build-all
 	@echo "Building Docker image $(IMAGE_NAME):latest..."
 	docker build -t $(IMAGE_NAME):latest -f docker/Dockerfile .
-	@echo "✓ Docker image built: $(IMAGE_NAME):latest"
+	@echo "✓ Docker image built"
 
-# Run Docker container
-docker-run:
-	@echo "Starting container $(IMAGE_NAME)..."
-	-docker rm -f packup 2>/dev/null
+# --- Runtime Commands ---
+
+run:
+	@echo "Starting $(CONTAINER_NAME) container..."
+	-docker rm -f $(CONTAINER_NAME) 2>/dev/null
 	docker run -d \
-		--name packup \
+		--name $(CONTAINER_NAME) \
 		-p 8080:8080 \
 		--add-host=host.docker.internal:host-gateway \
 		--env-file docker/.env.dev \
 		-e DB_HOST=host.docker.internal \
 		$(IMAGE_NAME):latest
-	@echo "✓ Container started: packup"
-	@echo "  Access at: http://localhost:8080"
-	@echo "  View logs: make docker-logs"
+	@echo "✓ App running at http://localhost:8080"
 
-# Stop and remove Docker container
-docker-stop:
-	@echo "Stopping container..."
-	-docker stop packup
-	-docker rm packup
-	@echo "✓ Container stopped and removed"
+logs:
+	docker logs -f $(CONTAINER_NAME)
 
-# Clean Docker images
-docker-clean:
-	@echo "Removing Docker images..."
-	-docker rmi $(IMAGE_NAME):latest
-	@echo "✓ Docker images removed"
+app-shell:
+	docker exec -it $(CONTAINER_NAME) sh
 
-# View Docker container logs
-docker-logs:
-	docker logs -f packup
+# --- Testing Commands ---
 
-# Complete release: build everything and create Docker image
-release: build-all docker-build
-	@echo "✓ Release complete!"
-	@echo "  - Binary: bin/packup"
-	@echo "  - Frontend: bin/frontend/dist"
-	@echo "  - Docker: $(IMAGE_NAME):latest"
+go-test:
+	@echo "Running backend tests..."
+	cd backend && go test -v ./...
 
-# Production commands
-prod-up:
-	$(DOCKER_COMPOSE) -f docker/docker-compose.yml --env-file docker/.env.prod up -d
+# --- Utility Commands ---
 
-prod-down:
-	$(DOCKER_COMPOSE) -f docker/docker-compose.yml --env-file docker/.env.prod down
-
-docker-push: docker-build
-	docker tag $(IMAGE_NAME):latest $(DOCKER_HUB_USER)/$(IMAGE_NAME):latest
-	docker push $(DOCKER_HUB_USER)/$(IMAGE_NAME):latest
-
-# Clean build artifacts
 clean:
+	@echo "Cleaning build artifacts..."
 	rm -rf bin/
 	rm -rf frontend/dist
-	@echo "✓ Cleaned build artifacts"
 
-# Help command
+docker-clean:
+	@echo "Stopping and removing Docker images/containers..."
+	-docker stop $(CONTAINER_NAME) 2>/dev/null
+	-docker rm $(CONTAINER_NAME) 2>/dev/null
+	-docker rmi $(IMAGE_NAME):latest 2>/dev/null
+
 help:
-	@echo "Available commands:"
-	@echo "  make db-up           - Start PostgreSQL database (local dev)"
-	@echo "  make db-down         - Stop PostgreSQL database (local dev)"
-	@echo "  make db-logs         - View database logs"
-	@echo "  make db-shell        - Open psql shell"
+	@echo "Usage: make [target]"
 	@echo ""
-	@echo "  make prod-up         - Start production deployment (Traefik + App + DB)"
-	@echo "  make prod-down       - Stop production deployment"
-	@echo "  make docker-push     - Build and push image to Docker Hub"
+	@echo "Database Commands:"
+	@echo "  db             - Start dev database"
+	@echo "  db-down        - Stop dev database and remove volumes"
+	@echo "  db-logs        - Follow database logs"
+	@echo "  db-shell       - Open PSQL shell in database"
 	@echo ""
-	@echo "  make test             - Run backend tests"
-	@echo "  make test-coverage    - Run tests with coverage report"
+	@echo "Build Commands:"
+	@echo "  docker         - Full clean build and docker image creation"
+	@echo "  build-all      - Build backend and frontend locally"
+	@echo "  frontend-install - Install frontend dependencies"
 	@echo ""
-	@echo "  make frontend-install - Install npm dependencies"
-	@echo "  make frontend-build   - Build frontend"
-	@echo "  make build-backend    - Build Go binary"
-	@echo "  make build-frontend   - Build frontend and copy to bin/"
-	@echo "  make build-all        - Build backend + frontend"
+	@echo "Runtime Commands:"
+	@echo "  run            - Run the app container locally"
+	@echo "  logs           - Follow app container logs"
+	@echo "  app-shell      - Open shell inside the app container"
 	@echo ""
-	@echo "  make docker-build     - Build Docker image"
-	@echo "  make docker-run       - Run Docker container"
-	@echo "  make docker-stop      - Stop and remove container"
-	@echo "  make docker-logs      - View container logs"
-	@echo "  make docker-clean     - Remove Docker images"
-	@echo "  make release          - Full release: build + docker"
+	@echo "Testing Commands:"
+	@echo "  go-test        - Run Go backend tests"
 	@echo ""
-	@echo "  make clean            - Remove build artifacts"
-	@echo "  make help             - Show this help"
+	@echo "Utility Commands:"
+	@echo "  clean          - Remove local build artifacts"
+	@echo "  docker-clean   - Remove app container and image"
