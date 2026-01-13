@@ -4,11 +4,19 @@ services:
     image: ${DOCKER_HUB_USER:-akhilmk}/packup:latest
     container_name: packup-app
     restart: always
-    env_file:
-      - .env.prod
     environment:
+      - DB_USER=${DB_USER}
+      - DB_PASS=${DB_PASS}
       - DB_HOST=postgres
       - DB_PORT=5432
+      - DB_NAME=${DB_NAME}
+      - SSLMODE=${SSLMODE:-disable}
+      - PORT=${PORT:-8080}
+      - SESSION_SECURE=${SESSION_SECURE:-false}
+      - ADMIN_EMAILS=${ADMIN_EMAILS}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI}
     depends_on:
       postgres:
         condition: service_healthy
@@ -23,8 +31,6 @@ services:
     image: postgres:15
     container_name: packup-postgres
     restart: always
-    env_file:
-      - .env.prod
     environment:
       - POSTGRES_USER=${DB_USER}
       - POSTGRES_PASSWORD=${DB_PASS}

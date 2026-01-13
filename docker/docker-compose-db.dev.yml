@@ -2,8 +2,6 @@ services:
   postgres:
     image: postgres:15
     container_name: packup-postgres-dev
-    env_file:
-      - .env.dev
     environment:
       - POSTGRES_USER=${DB_USER:-postgres}
       - POSTGRES_PASSWORD=${DB_PASS:-postgres}

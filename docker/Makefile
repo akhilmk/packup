@@ -1,4 +1,4 @@
-# Makefile for production
+# Makefile for production and full solution deployment
 
 # Load environment variables from .env.prod
 # This handles both running from root or from inside the docker/ folder
@@ -45,3 +45,13 @@ prod-down:
 	@echo "Stopping production stack..."
 	$(DOCKER_COMPOSE) -f docker/docker-compose.yml --env-file docker/.env.prod down
 	@echo "✓ Production stack is down"
+
+dev-up:
+	@echo "Starting development stack..."
+	$(DOCKER_COMPOSE) -f docker/docker-compose.yml --env-file docker/.env.dev up -d
+	@echo "✓ Development stack is up"
+
+dev-down:
+	@echo "Stopping development stack..."
+	$(DOCKER_COMPOSE) -f docker/docker-compose.yml --env-file docker/.env.dev down
+	@echo "✓ Development stack is down"

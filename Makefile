@@ -1,4 +1,4 @@
-# makefile for dev and pipeline
+# makefile for development environment 
 
 # Load environment variables from docker/.env.dev if it exists
 ifneq (,$(wildcard docker/.env.dev))
@@ -7,7 +7,7 @@ ifneq (,$(wildcard docker/.env.dev))
 endif
 
 # Configuration
-COMPOSE_FILE ?= docker/docker-compose.dev.yml
+COMPOSE_FILE ?= docker/docker-compose-db.dev.yml
 DOCKER_COMPOSE ?= docker compose
 IMAGE_NAME := packup
 CONTAINER_NAME := packup
@@ -21,17 +21,17 @@ CONTAINER_NAME := packup
 
 db:
 	@echo "Starting dev database..."
-	$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) up -d
+	$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) --env-file docker/.env.dev up -d
 
 db-down:
 	@echo "Stopping dev database..."
-	$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) down -v
+	$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) --env-file docker/.env.dev down -v
 
 db-logs:
-	$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) logs -f
+	$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) --env-file docker/.env.dev logs -f
 
 db-shell:
-	$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) exec postgres psql -U $${DB_USER:-postgres} -d $${DB_NAME:-packup}
+	$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) --env-file docker/.env.dev exec postgres psql -U $${DB_USER:-postgres} -d $${DB_NAME:-packup}
 
 # --- Build Commands ---
 
@@ -71,8 +71,17 @@ run:
 		--name $(CONTAINER_NAME) \
 		-p 8080:8080 \
 		--add-host=host.docker.internal:host-gateway \
-		--env-file docker/.env.dev \
+		-e DB_USER=$(DB_USER) \
+		-e DB_PASS=$(DB_PASS) \
+		-e DB_NAME=$(DB_NAME) \
 		-e DB_HOST=host.docker.internal \
+		-e DB_PORT=5432 \
+		-e SSLMODE=$(SSLMODE) \
+		-e PORT=8080 \
+		-e ADMIN_EMAILS=$(ADMIN_EMAILS) \
+		-e GOOGLE_CLIENT_ID=$(GOOGLE_CLIENT_ID) \
+		-e GOOGLE_CLIENT_SECRET=$(GOOGLE_CLIENT_SECRET) \
+		-e GOOGLE_REDIRECT_URI=$(GOOGLE_REDIRECT_URI) \
 		$(IMAGE_NAME):latest
 	@echo "✓ App running at http://localhost:8080"
 
