@@ -6,6 +6,7 @@
 
   export let todo: Todo;
   export let user: User | null = null;
+  export let showSourceLabels = true;
   const dispatch = createEventDispatcher();
 
   let isEditing = false;
@@ -129,32 +130,33 @@
   {:else}
     <!-- svelte-ignore a11y-no-static-element-interactions -->
     <span
-      class="flex-1 font-medium selection:bg-indigo-100 transition-all duration-300 
-             {todo.status === 'done' ? 'line-through text-slate-300 opacity-60' : 'text-slate-700'}
+      class="flex-1 font-medium selection:bg-indigo-100 transition-all duration-300 text-slate-700
              {todo.status === 'in-progress' ? 'text-indigo-600' : ''}"
       on:dblclick={() => { if (!todo.is_default_task && isUserCreated) isEditing = true; }}
     >
       {todo.text}
-      {#if todo.is_default_task}
-        <span class="inline-flex items-center ml-2 text-[10px] font-bold tracking-wider text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-100 uppercase align-middle transform -translate-y-0.5 gap-1 shadow-sm">
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
-            <path d="M2 17l10 5 10-5"></path>
-            <path d="M2 12l10 5 10-5"></path>
-          </svg>
-          Default Task
-        </span>
-      {/if}
-      {#if !todo.is_default_task && !isUserCreated && user?.role !== 'admin'}
-        <!-- Admin-created task shown to user -->
-        <span class="inline-flex items-center ml-2 text-[10px] font-bold tracking-wider text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100 uppercase align-middle transform -translate-y-0.5 gap-1 shadow-sm">
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-            <circle cx="8.5" cy="7" r="4"></circle>
-            <polyline points="17 11 19 13 23 9"></polyline>
-          </svg>
-          Admin
-        </span>
+      {#if showSourceLabels}
+        {#if todo.is_default_task}
+          <span class="inline-flex items-center ml-2 text-[10px] font-bold tracking-wider text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-100 uppercase align-middle transform -translate-y-0.5 gap-1 shadow-sm">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+              <path d="M2 17l10 5 10-5"></path>
+              <path d="M2 12l10 5 10-5"></path>
+            </svg>
+            Default Task
+          </span>
+        {/if}
+        {#if !todo.is_default_task && !isUserCreated && user?.role !== 'admin'}
+          <!-- Admin-created task shown to user -->
+          <span class="inline-flex items-center ml-2 text-[10px] font-bold tracking-wider text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100 uppercase align-middle transform -translate-y-0.5 gap-1 shadow-sm">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+              <circle cx="8.5" cy="7" r="4"></circle>
+              <polyline points="17 11 19 13 23 9"></polyline>
+            </svg>
+            Admin
+          </span>
+        {/if}
       {/if}
       {#if !todo.is_default_task && isUserCreated && user?.role !== 'admin'}
         {#if todo.shared_with_admin}
@@ -180,6 +182,11 @@
       {#if todo.status === 'in-progress'}
         <span class="inline-flex items-center ml-2 text-[10px] font-bold tracking-wider text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100 uppercase align-middle transform -translate-y-0.5 gap-1 shadow-sm">
           In Progress
+        </span>
+      {/if}
+      {#if todo.status === 'done'}
+        <span class="inline-flex items-center ml-2 text-[10px] font-bold tracking-wider text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100 uppercase align-middle transform -translate-y-0.5 gap-1 shadow-sm">
+          Done
         </span>
       {/if}
     </span>

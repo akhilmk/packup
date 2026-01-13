@@ -32,7 +32,7 @@
     *   **Visibility**:
         *   **Admin View**:
             *   User-created (Shared): Labeled "User" + "Shared". Status: Editable. Text: Read-only.
-            *   Admin-created: Labeled "Admin". Status: Editable. Text: Editable.
+            *   Admin-created: Labeled "Shared" (if visible to user) or "Hidden from User" (if hidden). Status: Editable. Text: Editable.
             *   **Hidden Tasks**: If an Admin-created task is hidden from the user, it is labeled "hidden from user".
         *   **User View**:
             *   User-created: Standard view. If hidden from admin (unshared), labeled "hidden from admin".

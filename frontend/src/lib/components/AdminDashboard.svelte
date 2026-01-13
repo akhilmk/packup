@@ -12,6 +12,11 @@
   let userTodos: Todo[] = [];
   let selectedUser: User | null = null;
   let loading = true;
+
+  // Derived stores for sectioned view in Admin Dashboard
+  $: userDefaultTodos = userTodos.filter(t => t.is_default_task);
+  $: userAssignedTodos = userTodos.filter(t => !t.is_default_task && t.created_by_user_id !== selectedUser?.id);
+  $: userPersonalTodos = userTodos.filter(t => !t.is_default_task && t.created_by_user_id === selectedUser?.id);
   
   // Admin todo management
   let newAdminTodoText = "";
@@ -464,149 +469,163 @@
       </form>
     </div>
 
-    <div class="glass-card rounded-3xl overflow-hidden border-border divide-y divide-gray-50">
-      {#if userTodos.length === 0}
-        <div class="p-12 text-center">
-          <p class="text-slate-500">No todos yet</p>
-        </div>
-      {:else}
-        {#each userTodos as todo}
-          <div class="p-4 flex items-center gap-4">
-             <!-- Status Indicator / Initial for Admin View -->
-            {#if todo.is_default_task}
-              <StatusIndicator 
-                status={todo.status} 
-                clickable={true} 
-                on:click={() => handleCycleUserTodoStatus(todo)}
-              />
-            {:else}
-               <!-- 
-                 Shared Task (User or Admin Created)
-                 Status is Shared Responsibility: Always Clickable for Admin
-               -->
-               <StatusIndicator 
-                 status={todo.status} 
-                 clickable={true}
-                 on:click={() => handleCycleUserTodoStatus(todo)}
-               />
-            {/if}
-            {#if editingUserTodoId === todo.id}
-              <form on:submit|preventDefault={() => saveEditUserTodo(todo)} class="flex-1 flex gap-2">
-                <input
-                  bind:value={editingUserTodoText}
-                  maxlength="200"
-                  class="flex-1 px-3 py-1.5 border border-indigo-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                  autofocus
-                />
-                <button
-                  type="submit"
-                  class="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
-                  title="Save"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="20 6 9 17 4 12"></polyline>
-                  </svg>
-                </button>
-                <button
-                  type="button"
-                  on:click={cancelEditUserTodo}
-                  class="p-2 text-slate-400 hover:bg-slate-100 rounded-lg transition-colors"
-                  title="Cancel"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                  </svg>
-                </button>
-              </form>
-            {:else}
-              <span class="flex-1 font-medium text-slate-700 {todo.status === 'done' ? 'line-through opacity-60' : ''}">
-                {todo.text}
-                {#if todo.is_default_task}
-                  <span class="inline-flex items-center ml-2 text-[10px] font-bold tracking-wider text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-100 uppercase align-middle transform -translate-y-0.5">
-                    Default
-                  </span>
-                {/if}
-                {#if !todo.is_default_task && todo.user_id === selectedUser?.id}
-                  {#if todo.created_by_user_id === selectedUser?.id}
-                    <!-- User-created task -->
-                    <!-- Admin sees 'User' + 'Shared' because Admin is viewing User's task -->
-                    <span class="inline-flex items-center ml-2 text-[10px] font-bold tracking-wider text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-100 uppercase align-middle transform -translate-y-0.5">
-                      User
-                    </span>
-                    <span class="inline-flex items-center ml-1 text-[10px] font-bold tracking-wider text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100 uppercase align-middle transform -translate-y-0.5">
-                      Shared
-                    </span>
+    {#if userTodos.length === 0}
+      <div class="glass-card rounded-3xl p-12 text-center text-slate-500">
+        No todos yet
+      </div>
+    {:else}
+      <div class="space-y-8">
+        <!-- Default Tasks Section -->
+        {#if userDefaultTodos.length > 0}
+          <div>
+            <h3 class="text-sm font-bold text-slate-500 uppercase tracking-widest px-4 mb-2">Default Tasks</h3>
+            <div class="glass-card rounded-3xl overflow-hidden border-border divide-y divide-gray-50">
+              {#each userDefaultTodos as todo (todo.id)}
+                <!-- Render Item Code Block -->
+                <div class="p-4 flex items-center gap-4">
+                  <StatusIndicator 
+                    status={todo.status} 
+                    clickable={true} 
+                    on:click={() => handleCycleUserTodoStatus(todo)}
+                  />
+                  
+                  {#if editingUserTodoId === todo.id}
+                    <form on:submit|preventDefault={() => saveEditUserTodo(todo)} class="flex-1 flex gap-2">
+                      <input
+                        bind:value={editingUserTodoText}
+                        maxlength="200"
+                        class="flex-1 px-3 py-1.5 border border-indigo-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                        autofocus
+                      />
+                      <button type="submit" class="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"><svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg></button>
+                      <button type="button" on:click={cancelEditUserTodo} class="p-2 text-slate-400 hover:bg-slate-100 rounded-lg transition-colors"><svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+                    </form>
                   {:else}
-                    <!-- Admin-created task for user -->
-                    <!-- Admin sees 'Admin' (Creator is Viewer) -> No Shared label -->
-                    <span class="inline-flex items-center ml-2 text-[10px] font-bold tracking-wider text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100 uppercase align-middle transform -translate-y-0.5">
-                      Admin
+                    <span class="flex-1 font-medium text-slate-700 {todo.status === 'done' ? 'line-through opacity-60' : ''}">
+                      {todo.text}
+                      <!-- No labels for Default Tasks -->
                     </span>
-                    {#if todo.hidden_from_user}
-                      <span class="inline-flex items-center ml-1 text-[10px] font-bold tracking-wider text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200 uppercase align-middle transform -translate-y-0.5">
-                        Hidden from User
-                      </span>
-                    {/if}
                   {/if}
-                {/if}
-              </span>
-            {/if}
-            {#if todo.status === 'in-progress'}
-              <span class="inline-flex items-center ml-1 text-[10px] font-bold tracking-wider text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100 uppercase align-middle transform -translate-y-0.5">
-                In Progress
-              </span>
-            {/if}
-            <div class="flex items-center gap-2">
-              {#if !todo.is_default_task && editingUserTodoId !== todo.id && todo.created_by_user_id !== selectedUser?.id}
-                <!-- Only show edit/hide/delete for admin-created tasks -->
-                <button
-                  on:click={() => startEditUserTodo(todo)}
-                  class="p-1 rounded hover:bg-slate-100 text-slate-400 hover:text-indigo-600"
-                  title="Edit task"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"></path>
-                    <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                  </svg>
-                </button>
-                <button 
-                  on:click={() => toggleUserTodoHidden(todo)}
-                  class="p-1 rounded hover:bg-slate-100 text-slate-400 hover:text-indigo-600"
-                  title={todo.hidden_from_user ? "Show to user" : "Hide from user"}
-                >
-                  {#if todo.hidden_from_user}
-                   <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                      <circle cx="12" cy="12" r="3"></circle>
-                    </svg>
-                  {:else}
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-                      <line x1="1" y1="1" x2="23" y2="23"></line>
-                    </svg>
+                  
+                  {#if todo.status === 'in-progress'}
+                    <span class="inline-flex items-center ml-1 text-[10px] font-bold tracking-wider text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100 uppercase align-middle transform -translate-y-0.5">In Progress</span>
                   {/if}
-                </button>
-                <button 
-                  on:click={() => handleDeleteUserTodo(todo)}
-                  class="p-1 rounded hover:bg-red-50 text-slate-400 hover:text-red-500"
-                  title="Delete task"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="3 6 5 6 21 6"></polyline>
-                    <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"></path>
-                  </svg>
-                </button>
-              {/if}
-              <span class="text-xs text-slate-400">
-                {new Date(todo.created).toLocaleDateString()}
-              </span>
+                  
+                  <div class="flex items-center gap-2">
+                     <span class="text-xs text-slate-400">{new Date(todo.created).toLocaleDateString()}</span>
+                  </div>
+                </div>
+              {/each}
             </div>
           </div>
-        {/each}
-      {/if}
-    </div>
+        {/if}
+
+        <!-- Assigned Tasks Section -->
+        {#if userAssignedTodos.length > 0}
+          <div>
+            <h3 class="text-sm font-bold text-slate-500 uppercase tracking-widest px-4 mb-2">Admin Tasks</h3>
+            <div class="glass-card rounded-3xl overflow-hidden border-border divide-y divide-gray-50">
+              {#each userAssignedTodos as todo (todo.id)}
+                 <div class="p-4 flex items-center gap-4">
+                  <StatusIndicator 
+                    status={todo.status} 
+                    clickable={true} 
+                    on:click={() => handleCycleUserTodoStatus(todo)}
+                  />
+                  
+                  {#if editingUserTodoId === todo.id}
+                     <!-- Edit Form -->
+                    <form on:submit|preventDefault={() => saveEditUserTodo(todo)} class="flex-1 flex gap-2">
+                      <input bind:value={editingUserTodoText} maxlength="200" class="flex-1 px-3 py-1.5 border border-indigo-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20" autofocus />
+                      <button type="submit" class="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"><svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg></button>
+                      <button type="button" on:click={cancelEditUserTodo} class="p-2 text-slate-400 hover:bg-slate-100 rounded-lg transition-colors"><svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+                    </form>
+                  {:else}
+                    <span class="flex-1 font-medium text-slate-700">
+                      {todo.text}
+                      <!-- Admin Created means Assigned. No explicit 'Admin' label needed. Show 'Hidden from User' if relevant. -->
+                      {#if todo.hidden_from_user}
+                        <span class="inline-flex items-center ml-1 text-[10px] font-bold tracking-wider text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200 uppercase align-middle transform -translate-y-0.5">Hidden from User</span>
+                      {:else}
+                         <span class="inline-flex items-center ml-2 text-[10px] font-bold tracking-wider text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-100 uppercase align-middle transform -translate-y-0.5">Shared</span>
+                      {/if}
+                    </span>
+                  {/if}
+                  
+                  {#if todo.status === 'in-progress'}
+                    <span class="inline-flex items-center ml-1 text-[10px] font-bold tracking-wider text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100 uppercase align-middle transform -translate-y-0.5">In Progress</span>
+                  {/if}
+                  {#if todo.status === 'done'}
+                    <span class="inline-flex items-center ml-1 text-[10px] font-bold tracking-wider text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100 uppercase align-middle transform -translate-y-0.5">Done</span>
+                  {/if}
+
+                  <div class="flex items-center gap-2">
+                    <!-- Actions for Assigned Tasks -->
+                     <button on:click={() => startEditUserTodo(todo)} class="p-1 rounded hover:bg-slate-100 text-slate-400 hover:text-indigo-600" title="Edit task"><svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button>
+                     <button on:click={() => toggleUserTodoHidden(todo)} class="p-1 rounded hover:bg-slate-100 text-slate-400 hover:text-indigo-600" title={todo.hidden_from_user ? "Show to user" : "Hide from user"}>
+                       {#if todo.hidden_from_user}
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                       {:else}
+                         <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+                       {/if}
+                     </button>
+                     <button on:click={() => handleDeleteUserTodo(todo)} class="p-1 rounded hover:bg-red-50 text-slate-400 hover:text-red-500" title="Delete task"><svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"></path></svg></button>
+                     <span class="text-xs text-slate-400">{new Date(todo.created).toLocaleDateString()}</span>
+                  </div>
+                 </div>
+              {/each}
+            </div>
+          </div>
+        {/if}
+
+        <!-- Personal Tasks Section -->
+        {#if userPersonalTodos.length > 0}
+          <div>
+            <h3 class="text-sm font-bold text-slate-500 uppercase tracking-widest px-4 mb-2">Customer Tasks</h3>
+            <div class="glass-card rounded-3xl overflow-hidden border-border divide-y divide-gray-50">
+              {#each userPersonalTodos as todo (todo.id)}
+                 <div class="p-4 flex items-center gap-4">
+                  <StatusIndicator 
+                    status={todo.status} 
+                    clickable={true} 
+                    on:click={() => handleCycleUserTodoStatus(todo)}
+                  />
+                  
+                  {#if editingUserTodoId === todo.id}
+                    <form on:submit|preventDefault={() => saveEditUserTodo(todo)} class="flex-1 flex gap-2">
+                      <input bind:value={editingUserTodoText} maxlength="200" class="flex-1 px-3 py-1.5 border border-indigo-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20" autofocus />
+                      <button type="submit" class="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"><svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg></button>
+                      <button type="button" on:click={cancelEditUserTodo} class="p-2 text-slate-400 hover:bg-slate-100 rounded-lg transition-colors"><svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+                    </form>
+                  {:else}
+                    <span class="flex-1 font-medium text-slate-700">
+                      {todo.text}
+                      <!-- Personal Task. User Created. NO 'User' Label. Show 'Shared' and 'In Progress' logic. -->
+                      {#if todo.created_by_user_id === selectedUser?.id} <!-- Always true in this filtered block -->
+                         <span class="inline-flex items-center ml-2 text-[10px] font-bold tracking-wider text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-100 uppercase align-middle transform -translate-y-0.5">Shared</span>
+                      {/if}
+                    </span>
+                  {/if}
+                  
+                  {#if todo.status === 'in-progress'}
+                    <span class="inline-flex items-center ml-1 text-[10px] font-bold tracking-wider text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100 uppercase align-middle transform -translate-y-0.5">In Progress</span>
+                  {/if}
+                  {#if todo.status === 'done'}
+                    <span class="inline-flex items-center ml-1 text-[10px] font-bold tracking-wider text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100 uppercase align-middle transform -translate-y-0.5">Done</span>
+                  {/if}
+
+                  <div class="flex items-center gap-2">
+                     <span class="text-xs text-slate-400">{new Date(todo.created).toLocaleDateString()}</span>
+                  </div>
+                 </div>
+              {/each}
+            </div>
+          </div>
+        {/if}
+      </div>
+    {/if}
   {/if}
+
 </div>
 
 {#if showConfirmModal}
