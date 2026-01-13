@@ -86,15 +86,19 @@
     <div class="mb-4 flex justify-center">
       <div class="w-16 h-16 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
         <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 11l1 1 2-2" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 2C7 2 3 6 3 11c0 6 9 13 9 13s9-7 9-13c0-5-4-9-9-9z" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8l1.5 1.5 3-3" />
+          <line x1="13" y1="8" x2="17" y2="8" stroke-width="2" stroke-linecap="round" />
+          <rect x="7" y="12" width="3" height="3" rx="0.5" stroke-width="2" />
+          <line x1="12" y1="13.5" x2="17" y2="13.5" stroke-width="2" stroke-linecap="round" />
+          <rect x="7" y="16" width="3" height="3" rx="0.5" stroke-width="2" />
+          <line x1="12" y1="17.5" x2="17" y2="17.5" stroke-width="2" stroke-linecap="round" />
         </svg>
       </div>
     </div>
     
     <h1 class="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600 tracking-tight mb-2">
-      Packup
+      PackUp
     </h1>
     <p class="text-slate-500 font-medium">
       {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
