@@ -14,11 +14,13 @@
   let userTodos: Todo[] = [];
   let selectedUser: User | null = null;
   let loading = true;
-
+  let userTodoFilter: 'all' | 'pending' | 'in-progress' | 'done' = 'all';
+  
   // Derived stores for sectioned view in Admin Dashboard
-  $: userDefaultTodos = userTodos.filter(t => t.is_default_task);
-  $: userAssignedTodos = userTodos.filter(t => !t.is_default_task && t.created_by_user_id !== selectedUser?.id);
-  $: userPersonalTodos = userTodos.filter(t => !t.is_default_task && t.created_by_user_id === selectedUser?.id);
+  $: filteredUserTodos = userTodoFilter === 'all' ? userTodos : userTodos.filter(t => t.status === userTodoFilter);
+  $: userDefaultTodos = filteredUserTodos.filter(t => t.is_default_task);
+  $: userAssignedTodos = filteredUserTodos.filter(t => !t.is_default_task && t.created_by_user_id !== selectedUser?.id);
+  $: userPersonalTodos = filteredUserTodos.filter(t => !t.is_default_task && t.created_by_user_id === selectedUser?.id);
   
   // Admin todo management
   let newAdminTodoText = "";
@@ -435,13 +437,54 @@
       </div>
 
       <div class="glass-card rounded-2xl p-6 mb-6">
-        <div class="flex items-center space-x-4">
-          {#if selectedUser.avatar_url}
-            <img src={selectedUser.avatar_url} alt={selectedUser.name} class="w-16 h-16 rounded-full" />
-          {/if}
-          <div>
-            <h2 class="text-2xl font-bold text-slate-800">{selectedUser.name}</h2>
-            <p class="text-slate-600">{selectedUser.email}</p>
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div class="flex items-center space-x-4">
+            {#if selectedUser.avatar_url}
+              <img src={selectedUser.avatar_url} alt={selectedUser.name} class="w-16 h-16 rounded-full" />
+            {/if}
+            <div>
+              <h2 class="text-2xl font-bold text-slate-800">{selectedUser.name}</h2>
+              <p class="text-slate-600">{selectedUser.email}</p>
+            </div>
+          </div>
+
+          <!-- Status Filters (mirroring user login view) -->
+          <div class="flex flex-wrap gap-2">
+            <button 
+              class="px-3 py-1.5 rounded-full border transition-all duration-200 {userTodoFilter === 'all' ? 'bg-indigo-600 text-white border-indigo-600 shadow-md' : 'bg-white text-slate-500 border-slate-200 hover:border-indigo-300 hover:text-indigo-600'}"
+              on:click={() => userTodoFilter = 'all'}
+            >
+              <span class="text-[10px] font-bold uppercase tracking-wider">
+                All ({userTodos.length})
+              </span>
+            </button>
+
+            <button 
+              class="px-3 py-1.5 rounded-full border transition-all duration-200 {userTodoFilter === 'pending' ? 'bg-indigo-50 border-indigo-200 ring-2 ring-indigo-100 shadow-sm' : 'bg-white border-slate-200 hover:bg-slate-50'}"
+              on:click={() => userTodoFilter = 'pending'}
+            >
+              <span class="text-[10px] font-bold {userTodoFilter === 'pending' ? 'text-indigo-700' : 'text-slate-500'} uppercase tracking-wider">
+                Pending ({userTodos.filter(t => t.status === 'pending').length})
+              </span>
+            </button>
+
+            <button 
+              class="px-3 py-1.5 rounded-full border transition-all duration-200 {userTodoFilter === 'in-progress' ? 'bg-amber-50 border-amber-200 ring-2 ring-amber-100 shadow-sm' : 'bg-white border-slate-200 hover:bg-slate-50'}"
+              on:click={() => userTodoFilter = 'in-progress'}
+            >
+              <span class="text-[10px] font-bold {userTodoFilter === 'in-progress' ? 'text-amber-700' : 'text-slate-500'} uppercase tracking-wider">
+                In Progress ({userTodos.filter(t => t.status === 'in-progress').length})
+              </span>
+            </button>
+
+            <button 
+              class="px-3 py-1.5 rounded-full border transition-all duration-200 {userTodoFilter === 'done' ? 'bg-emerald-50 border-emerald-200 ring-2 ring-emerald-100 shadow-sm' : 'bg-white border-slate-200 hover:bg-slate-50'}"
+              on:click={() => userTodoFilter = 'done'}
+            >
+              <span class="text-[10px] font-bold {userTodoFilter === 'done' ? 'text-emerald-700' : 'text-slate-500'} uppercase tracking-wider">
+                Done ({userTodos.filter(t => t.status === 'done').length})
+              </span>
+            </button>
           </div>
         </div>
       </div>
