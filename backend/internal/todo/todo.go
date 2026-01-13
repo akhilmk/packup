@@ -39,7 +39,8 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 
 	// Check if this is explicitly requested (e.g. for some future use case), but default to false.
 	// We want Admins to see global default tasks in their personal view as well, acting as "normal users".
-	excludeAdminTodos := r.URL.Query().Get("exclude_admin_todos") == "true"
+	userRole, _ := auth.GetUserRole(r.Context())
+	excludeAdminTodos := r.URL.Query().Get("exclude_admin_todos") == "true" || userRole == "admin"
 
 	var query string
 	if excludeAdminTodos {

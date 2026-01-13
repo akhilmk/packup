@@ -476,7 +476,7 @@
         <!-- Default Tasks Section -->
         {#if userDefaultTodos.length > 0}
           <div>
-            <h3 class="text-sm font-bold text-slate-500 uppercase tracking-widest px-4 mb-2">Default Tasks</h3>
+            <h3 class="text-sm font-bold text-slate-500 uppercase tracking-widest px-4 mb-2">Default</h3>
             <div class="glass-card rounded-3xl overflow-hidden border-border divide-y divide-gray-50">
               {#each userDefaultTodos as todo (todo.id)}
                 <!-- Render Item Code Block -->
@@ -521,7 +521,7 @@
         <!-- Assigned Tasks Section -->
         {#if userAssignedTodos.length > 0}
           <div>
-            <h3 class="text-sm font-bold text-slate-500 uppercase tracking-widest px-4 mb-2">Admin Tasks</h3>
+            <h3 class="text-sm font-bold text-slate-500 uppercase tracking-widest px-4 mb-2">Admin Added</h3>
             <div class="glass-card rounded-3xl overflow-hidden border-border divide-y divide-gray-50">
               {#each userAssignedTodos as todo (todo.id)}
                  <div class="p-4 flex items-center gap-4">
@@ -579,7 +579,7 @@
         <!-- Personal Tasks Section -->
         {#if userPersonalTodos.length > 0}
           <div>
-            <h3 class="text-sm font-bold text-slate-500 uppercase tracking-widest px-4 mb-2">Customer Tasks</h3>
+            <h3 class="text-sm font-bold text-slate-500 uppercase tracking-widest px-4 mb-2">Customer Added</h3>
             <div class="glass-card rounded-3xl overflow-hidden border-border divide-y divide-gray-50">
               {#each userPersonalTodos as todo (todo.id)}
                  <div class="p-4 flex items-center gap-4">
@@ -598,10 +598,7 @@
                   {:else}
                     <span class="flex-1 font-medium text-slate-700">
                       {todo.text}
-                      <!-- Personal Task. User Created. NO 'User' Label. Show 'Shared' and 'In Progress' logic. -->
-                      {#if todo.created_by_user_id === selectedUser?.id} <!-- Always true in this filtered block -->
-                         <span class="inline-flex items-center ml-2 text-[10px] font-bold tracking-wider text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-100 uppercase align-middle transform -translate-y-0.5">Shared</span>
-                      {/if}
+                      <!-- Personal Task. User Created. NO 'User' Label. -->
                     </span>
                   {/if}
                   

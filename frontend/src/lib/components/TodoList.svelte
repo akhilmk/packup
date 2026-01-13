@@ -184,7 +184,7 @@
         <!-- Default Tasks -->
         {#if defaultTodos.length > 0}
           <div>
-            <h3 class="text-sm font-bold text-slate-500 uppercase tracking-widest px-4 mb-2">Default Tasks</h3>
+            <h3 class="text-sm font-bold text-slate-500 uppercase tracking-widest px-4 mb-2">Default</h3>
             <div class="glass-card rounded-2xl overflow-hidden border-border divide-y divide-gray-50">
               {#each defaultTodos as todo (todo.id)}
                 <TodoItem {todo} {user} showSourceLabels={false} on:update={fetchTodos} on:delete={fetchTodos} />
@@ -196,7 +196,7 @@
         <!-- Admin Assigned Tasks -->
         {#if adminAssignedTodos.length > 0}
           <div>
-            <h3 class="text-sm font-bold text-slate-500 uppercase tracking-widest px-4 mb-2">Admin Tasks</h3>
+            <h3 class="text-sm font-bold text-slate-500 uppercase tracking-widest px-4 mb-2">Admin Added</h3>
             <div class="glass-card rounded-2xl overflow-hidden border-border divide-y divide-gray-50">
               {#each adminAssignedTodos as todo (todo.id)}
                 <TodoItem {todo} {user} showSourceLabels={false} on:update={fetchTodos} on:delete={fetchTodos} />
@@ -208,7 +208,7 @@
         <!-- Personal Tasks -->
         {#if personalTodos.length > 0}
           <div>
-            <h3 class="text-sm font-bold text-slate-500 uppercase tracking-widest px-4 mb-2">Customer Tasks</h3>
+            <h3 class="text-sm font-bold text-slate-500 uppercase tracking-widest px-4 mb-2">Customer Added</h3>
             <div class="glass-card rounded-2xl overflow-hidden border-border divide-y divide-gray-50">
               {#each personalTodos as todo (todo.id)}
                 <TodoItem {todo} {user} showSourceLabels={false} on:update={fetchTodos} on:delete={fetchTodos} />
