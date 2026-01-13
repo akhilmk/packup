@@ -1,3 +1,5 @@
+# makefile for dev and pipeline
+
 # Load environment variables from docker/.env.dev if it exists
 ifneq (,$(wildcard docker/.env.dev))
     include docker/.env.dev

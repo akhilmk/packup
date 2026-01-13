@@ -25,6 +25,14 @@ This project uses a `Makefile` to simplify development tasks. Environment variab
 
 - `make go-test`: Runs all Go backend unit tests with verbose output.
 
+## Production Commands (via docker/Makefile)
+
+These commands should be run using the `-f` flag from the project root:
+
+- `make -f docker/Makefile docker-release`: Builds the entire project, creates a Docker image, and pushes it to Docker Hub using the `DOCKER_HUB_USER` defined in `.env.prod`.
+- `make -f docker/Makefile prod-up`: Starts the production stack (App + DB + Traefik) using the production compose file and environment.
+- `make -f docker/Makefile prod-down`: Stops the production stack.
+
 ## Utility Commands
 
 - `make clean`: Deletes local build artifacts (`bin/` and `frontend/dist`).
