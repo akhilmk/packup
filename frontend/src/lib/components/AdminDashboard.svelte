@@ -545,11 +545,16 @@
                     </span>
                     {#if todo.hidden_from_user}
                       <span class="inline-flex items-center ml-1 text-[10px] font-bold tracking-wider text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200 uppercase align-middle transform -translate-y-0.5">
-                        Hidden
+                        Hidden from User
                       </span>
                     {/if}
                   {/if}
                 {/if}
+              </span>
+            {/if}
+            {#if todo.status === 'in-progress'}
+              <span class="inline-flex items-center ml-1 text-[10px] font-bold tracking-wider text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100 uppercase align-middle transform -translate-y-0.5">
+                In Progress
               </span>
             {/if}
             <div class="flex items-center gap-2">

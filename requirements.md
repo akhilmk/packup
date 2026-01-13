@@ -15,8 +15,8 @@
 ** Labels & Visibility Rules
  - Three distinct type labels: 'default', 'admin', 'user'
  - One status label: 'shared'
- - 'Shared' label logic: Shows only when the viewer is NOT the creator of the todo item.
-   - Example 1: User viewing Admin-created task -> Shows 'admin' + 'shared'
+ - 'Shared' label logic: Shows only when the viewer is NOT the creator of the todo item, AND the item is not 'admin' created (since admin implies shared).
+   - Example 1: User viewing Admin-created task -> Shows 'admin' (No 'shared' label)
    - Example 2: Admin viewing User-created task -> Shows 'user' + 'shared'
    - Example 3: User viewing User-created task -> Shows 'user' (No 'shared' label)
    - Example 4: Admin viewing Admin-created task (assigned to user) -> Shows 'admin'
@@ -33,18 +33,19 @@
         *   **Admin View**:
             *   User-created (Shared): Labeled "User" + "Shared". Status: Editable. Text: Read-only.
             *   Admin-created: Labeled "Admin". Status: Editable. Text: Editable.
+            *   **Hidden Tasks**: If an Admin-created task is hidden from the user, it is labeled "hidden from user".
         *   **User View**:
-            *   User-created: Standard view.
-            *   Admin-created: Labeled "Admin" + "Shared". Status: Editable. Text: Read-only.
+            *   User-created: Standard view. If hidden from admin (unshared), labeled "hidden from admin".
+            *   Admin-created: Labeled "Admin". Status: Editable. Text: Read-only.
     *   **Hiding**:
         *    Admin can "Hide" an Admin-created task from the User (e.g., drafting).
-        *    User can "Hide" an Admin-created task from their own view? (Requirement "hide for user" usually implies Admin hiding it from User, or User hiding it from themselves? Current impl allows Admin to toggle `hidden_from_user` on Admin-created tasks).
+        *    User can "Hide" their task from Admin (unshare).
  
  USER/CUSTOMER SIDE
  - users login show all 'default' labled tasks, 'admin' labled tasks.
  - user can make only progress change for 'default' and 'admin' task.
  - user can add new task under him, lablel will be 'user', he can edit, delete, change progress for his task.
- - user can hide his task (unshare). If shared, Admin sees 'user' + 'shared'.
- - admin added custom todos display as 'admin' + 'shared' in user view.
+ - user can hide his task (unshare). If hidden (unshared), User sees 'hidden from admin'. If shared, Admin sees 'user' + 'shared'.
+ - admin added custom todos display as 'admin' in user view.
    - Both User and Admin can update the progress of these tasks.
  - all 'user' created task's deletion/edit permitted only for user. Admin can only view (and see 'shared').
