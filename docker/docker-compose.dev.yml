@@ -1,13 +1,15 @@
 services:
   postgres:
     image: postgres:15
-    container_name: packup-postgres-dev
+    container_name: packup-dev-db
     environment:
       - POSTGRES_USER=${DB_USER:-postgres}
       - POSTGRES_PASSWORD=${DB_PASS:-postgres}
       - POSTGRES_DB=${DB_NAME:-packup}
     ports:
       - "5432:5432"
+    networks:
+      - packup-dev
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -15,6 +17,22 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+
+  # container to help building node frontend
+  node:
+    image: node:24-alpine
+    container_name: packup-node-dev
+    working_dir: /app
+    volumes:
+      - ../frontend:/app
+    user: "${USER_ID:-1000}:${GROUP_ID:-1000}"
+    entrypoint: ["tail", "-f", "/dev/null"]
+    networks:
+      - packup-dev
+
+networks:
+  packup-dev:
+    name: packup-dev
 
 volumes:
   pgdata:

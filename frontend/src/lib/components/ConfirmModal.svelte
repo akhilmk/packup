@@ -28,8 +28,10 @@
 <div 
   class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in"
   on:click={handleBackdropClick}
+  on:keydown={(e) => e.key === 'Escape' && handleCancel()}
   role="dialog"
   aria-modal="true"
+  tabindex="-1"
 >
   <!-- Modal -->
   <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 animate-scale-in">

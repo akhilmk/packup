@@ -7,39 +7,59 @@ ifneq (,$(wildcard docker/.env.dev))
 endif
 
 # Configuration
-COMPOSE_FILE ?= docker/docker-compose-db.dev.yml
+COMPOSE_FILE ?= docker/docker-compose.dev.yml
 DOCKER_COMPOSE ?= docker compose
 IMAGE_NAME := packup
 CONTAINER_NAME := packup
+NODE_IMAGE := node:24-alpine
+USER_ID := $(shell id -u)
+GROUP_ID := $(shell id -g)
+COMPOSE_ENV := USER_ID=$(USER_ID) GROUP_ID=$(GROUP_ID)
+DOCKER_EXEC_NODE := docker exec -i packup-node-dev
 
-.PHONY: db db-down db-logs db-shell \
-        frontend-install frontend-build build-backend build-frontend build-all \
+.PHONY: dev dev-down dev-logs dev-shell \
+        frontend-install frontend-audit-fix frontend-build build-backend build-frontend build-all \
         docker run logs app-shell go-test \
         clean docker-clean help
 
 # --- Database Commands ---
 
-db:
-	@echo "Starting dev database..."
-	$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) --env-file docker/.env.dev up -d
+dev:
+	@echo "Starting dev environment (db + node builder)..."
+	$(COMPOSE_ENV) $(DOCKER_COMPOSE) -f $(COMPOSE_FILE) --env-file docker/.env.dev up -d
 
-db-down:
-	@echo "Stopping dev database..."
-	$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) --env-file docker/.env.dev down -v
+dev-down:
+	@echo "Stopping dev environment..."
+	$(COMPOSE_ENV) $(DOCKER_COMPOSE) -f $(COMPOSE_FILE) --env-file docker/.env.dev down -v
 
-db-logs:
-	$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) --env-file docker/.env.dev logs -f
+dev-logs:
+	$(COMPOSE_ENV) $(DOCKER_COMPOSE) -f $(COMPOSE_FILE) --env-file docker/.env.dev logs -f
 
-db-shell:
-	$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) --env-file docker/.env.dev exec postgres psql -U $${DB_USER:-postgres} -d $${DB_NAME:-packup}
+dev-shell:
+	$(COMPOSE_ENV) $(DOCKER_COMPOSE) -f $(COMPOSE_FILE) --env-file docker/.env.dev exec postgres psql -U $(DB_USER) -d $(DB_NAME)
 
 # --- Build Commands ---
 
 frontend-install:
-	cd frontend && npm install
+	@if [ $$(docker ps -q -f name=packup-node-dev) ]; then \
+		$(DOCKER_EXEC_NODE) npm install; \
+	else \
+		docker run --rm -v $(PWD)/frontend:/app -w /app --user $(USER_ID):$(GROUP_ID) $(NODE_IMAGE) npm install; \
+	fi
+
+frontend-audit-fix:
+	@if [ $$(docker ps -q -f name=packup-node-dev) ]; then \
+		$(DOCKER_EXEC_NODE) npm audit fix; \
+	else \
+		docker run --rm -v $(PWD)/frontend:/app -w /app --user $(USER_ID):$(GROUP_ID) $(NODE_IMAGE) npm audit fix; \
+	fi
 
 frontend-build:
-	cd frontend && npm run build
+	@if [ $$(docker ps -q -f name=packup-node-dev) ]; then \
+		$(DOCKER_EXEC_NODE) npm run build; \
+	else \
+		docker run --rm -v $(PWD)/frontend:/app -w /app --user $(USER_ID):$(GROUP_ID) $(NODE_IMAGE) npm run build; \
+	fi
 
 build-frontend: frontend-build
 	@echo "Preparing frontend artifacts..."
@@ -64,17 +84,19 @@ docker: docker-clean clean build-all
 
 # --- Runtime Commands ---
 
+# "--network packup-dev" - use network of dev docker compose.
+# "-e DB_HOST=packup-dev-db" - use db host name from dev docker compose.
 run:
 	@echo "Starting $(CONTAINER_NAME) container..."
 	-docker rm -f $(CONTAINER_NAME) 2>/dev/null
 	docker run -d \
 		--name $(CONTAINER_NAME) \
 		-p 8080:8080 \
-		--add-host=host.docker.internal:host-gateway \
+		--network packup-dev \
 		-e DB_USER=$(DB_USER) \
 		-e DB_PASS=$(DB_PASS) \
 		-e DB_NAME=$(DB_NAME) \
-		-e DB_HOST=host.docker.internal \
+		-e DB_HOST=packup-dev-db \
 		-e DB_PORT=5432 \
 		-e SSLMODE=$(SSLMODE) \
 		-e PORT=8080 \
@@ -113,16 +135,17 @@ docker-clean:
 help:
 	@echo "Usage: make [target]"
 	@echo ""
-	@echo "Database Commands:"
-	@echo "  db             - Start dev database"
-	@echo "  db-down        - Stop dev database and remove volumes"
-	@echo "  db-logs        - Follow database logs"
-	@echo "  db-shell       - Open PSQL shell in database"
+	@echo "Development Commands:"
+	@echo "  dev            - Start dev environment (db + node builder)"
+	@echo "  dev-down       - Stop dev environment and remove volumes"
+	@echo "  dev-logs       - Follow dev environment logs"
+	@echo "  dev-shell      - Open PSQL shell in database"
 	@echo ""
 	@echo "Build Commands:"
 	@echo "  docker         - Full clean build and docker image creation"
 	@echo "  build-all      - Build backend and frontend locally"
 	@echo "  frontend-install - Install frontend dependencies"
+	@echo "  frontend-audit-fix - Fix frontend dependency vulnerabilities"
 	@echo ""
 	@echo "Runtime Commands:"
 	@echo "  run            - Run the app container locally"
