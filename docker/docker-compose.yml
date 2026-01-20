@@ -1,37 +1,8 @@
 name: ${COMPOSE_NAME}
 
 services:
-  packup:
-    # Build image using: make docker-build (or pull from Docker Hub)
-    image: ${APP_IMAGE}
-    container_name: packup-app
-    restart: always
-    environment:
-      - DB_USER=${DB_USER}
-      - DB_PASS=${DB_PASS}
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_NAME=${DB_NAME}
-      - SSLMODE=${SSLMODE:-disable}
-      - PORT=${PORT:-8080}
-      - SESSION_SECURE=${SESSION_SECURE:-false}
-      - ADMIN_EMAILS=${ADMIN_EMAILS}
-      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID_COMPOSE}
-      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET_COMPOSE}
-      - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI_COMPOSE}
-    depends_on:
-      postgres:
-        condition: service_healthy
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.packup.rule=Host(`${DOMAIN:-localhost}`)"
-      - "traefik.http.routers.packup.entrypoints=websecure"
-      - "traefik.http.routers.packup.tls.certresolver=myresolver"
-      - "traefik.http.services.packup.loadbalancer.server.port=8080"
-
-  postgres:
+  postgres-db:
     image: postgres:15
-    container_name: packup-postgres
     restart: always
     environment:
       - POSTGRES_USER=${DB_USER}
@@ -45,9 +16,34 @@ services:
       timeout: 5s
       retries: 5
 
+  packup-app:
+    image: ${APP_IMAGE}
+    restart: always
+    environment:
+      - DB_USER=${DB_USER}
+      - DB_PASS=${DB_PASS}
+      - DB_HOST=postgres-db
+      - DB_PORT=${DB_PORT}
+      - DB_NAME=${DB_NAME}
+      - SSLMODE=${SSLMODE:-disable}
+      - PORT=${PORT}
+      - SESSION_SECURE=${SESSION_SECURE:-false}
+      - ADMIN_EMAILS=${ADMIN_EMAILS}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID_COMPOSE}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET_COMPOSE}
+      - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI_COMPOSE}
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.packup-app.rule=Host(`${DOMAIN:-localhost}`)"
+      - "traefik.http.routers.packup-app.entrypoints=websecure"
+      - "traefik.http.routers.packup-app.tls.certresolver=myresolver"
+      - "traefik.http.services.packup-app.loadbalancer.server.port=${PORT}"
+
   traefik:
     image: traefik:v2.11
-    container_name: traefik
     restart: always
     environment:
       - "DOCKER_HOST=unix:///var/run/docker.sock"
@@ -66,7 +62,7 @@ services:
     ports:
       - "80:80"
       - "443:443"
-      - "8081:8080"
+      - "${TRAEFIK_DASHBOARD_PORT:-8081}:8080"
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
       - "../letsencrypt:/letsencrypt"
