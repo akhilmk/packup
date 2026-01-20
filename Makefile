@@ -19,7 +19,7 @@ DOCKER_EXEC_NODE := docker exec -i packup-node-dev
 
 .PHONY: dev-up dev-down dev-logs db-shell \
         frontend-install frontend-audit-fix frontend-build build-backend build-frontend build-all \
-        docker run logs app-shell go-test \
+        docker run logs app-shell go-test swagger \
         clean docker-clean help
 
 # --- Database Commands ---
@@ -120,6 +120,10 @@ app-shell:
 go-test:
 	@echo "Running backend tests..."
 	cd backend && go test -v ./...
+
+swagger:
+	@echo "Updating Swagger documentation..."
+	cd backend && ~/go/bin/swag init -g cmd/server/main.go
 
 # --- Utility Commands ---
 

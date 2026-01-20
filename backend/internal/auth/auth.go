@@ -33,6 +33,12 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/auth/logout", h.Logout)
 }
 
+// GoogleLogin redirects to Google OAuth2 login page.
+// @Summary Login with Google
+// @Description Redirects to Google OAuth2 login page.
+// @Tags auth
+// @Success 307
+// @Router /api/auth/google/login [get]
 func (h *Handler) GoogleLogin(w http.ResponseWriter, r *http.Request) {
 	clientID := os.Getenv("GOOGLE_CLIENT_ID")
 	redirectURI := os.Getenv("GOOGLE_REDIRECT_URI")
@@ -96,6 +102,14 @@ func (h *Handler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
+// Me returns the current authenticated user.
+// @Summary Get current user
+// @Description Get current authenticated user details from session cookie.
+// @Tags auth
+// @Produce json
+// @Success 200 {object} models.User
+// @Failure 401 {string} string "unauthorized"
+// @Router /api/auth/me [get]
 func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie("session_token")
 	if err != nil {
@@ -113,6 +127,12 @@ func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(user)
 }
 
+// Logout clears the session cookie.
+// @Summary Logout
+// @Description Clear session cookie and delete session from DB.
+// @Tags auth
+// @Success 200
+// @Router /api/auth/logout [post]
 func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie("session_token")
 	if err == nil {

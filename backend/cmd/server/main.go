@@ -10,8 +10,16 @@ import (
 	"github.com/akhilmk/packup/internal/auth"
 	"github.com/akhilmk/packup/internal/database"
 	"github.com/akhilmk/packup/internal/todo"
+
+	_ "github.com/akhilmk/packup/docs"
+	httpSwagger "github.com/swaggo/http-swagger"
 )
 
+// @title PackUp API
+// @version 1.0
+// @description This is the API server for the PackUp application.
+// @host localhost:8080
+// @BasePath /
 func main() {
 	ctx := context.Background() // Wait, need to import context
 
@@ -43,6 +51,9 @@ func main() {
 		return mw(adminHandler.RequireAdmin(next))
 	}
 	adminHandler.RegisterRoutes(mux, adminMw)
+
+	// Swagger documentation
+	mux.HandleFunc("GET /swagger/", httpSwagger.WrapHandler)
 
 	// Serve static frontend files
 	staticDir := "frontend/dist"

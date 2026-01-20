@@ -42,3 +42,13 @@ These commands should be run using the `-f` flag from the project root:
 - `make -f docker/Makefile prod-down`: Stops the production stack.
 
 
+## API Documentation Commands
+
+If you make changes to the API (handlers, models, or global info), you need to update the Swagger documentation:
+
+1.  **Update Annotations**: Modify the `@Summary`, `@Description`, `@Param`, or `@Success` comments in the backend handler files.
+2.  **Generate Documentation**: Run the following command from the project root:
+    - `make swagger`: Updates the OpenAPI specification and Swagger UI files.
+3.  **Verify**: Start the app (`make run`) and visit [http://localhost:8080/swagger/index.html](http://localhost:8080/swagger/index.html).
+
+---

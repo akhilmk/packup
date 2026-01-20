@@ -46,6 +46,16 @@ func (h *Handler) RequireAdmin(next http.HandlerFunc) http.HandlerFunc {
 }
 
 // ListUsers returns all users (admin only)
+// ListUsers returns all users excluding admins.
+// @Summary List users
+// @Description Get a list of all users excluding admins.
+// @Tags admin
+// @Produce json
+// @Success 200 {object} map[string][]models.User
+// @Failure 401 {object} httputil.APIError
+// @Failure 403 {object} httputil.APIError
+// @Failure 500 {object} httputil.APIError
+// @Router /api/admin/users [get]
 func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
 	// ListUsers returns all users excluding admins (admin only)
 	rows, err := h.db.Query(r.Context(), `
@@ -78,6 +88,16 @@ func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
 }
 
 // ListAdminTodos returns all admin todos (admin only)
+// ListAdminTodos returns all global default tasks.
+// @Summary List global default tasks
+// @Description Get a list of all global default tasks.
+// @Tags admin
+// @Produce json
+// @Success 200 {object} map[string][]models.Todo
+// @Failure 401 {object} httputil.APIError
+// @Failure 403 {object} httputil.APIError
+// @Failure 500 {object} httputil.APIError
+// @Router /api/admin/todos [get]
 func (h *Handler) ListAdminTodos(w http.ResponseWriter, r *http.Request) {
 	rows, err := h.db.Query(r.Context(), `
 		SELECT id, text, status, created, position, created_by_user_id, is_default_task, shared_with_admin
@@ -109,6 +129,19 @@ func (h *Handler) ListAdminTodos(w http.ResponseWriter, r *http.Request) {
 }
 
 // CreateAdminTodo creates a new admin todo (admin only)
+// CreateAdminTodo creates a new global default task.
+// @Summary Create global default task
+// @Description Create a new global default task.
+// @Tags admin
+// @Accept json
+// @Produce json
+// @Param todo body object true "Todo text"
+// @Success 201 {object} models.Todo
+// @Failure 400 {object} httputil.APIError
+// @Failure 401 {object} httputil.APIError
+// @Failure 403 {object} httputil.APIError
+// @Failure 500 {object} httputil.APIError
+// @Router /api/admin/todos [post]
 func (h *Handler) CreateAdminTodo(w http.ResponseWriter, r *http.Request) {
 	userID, ok := auth.GetUserID(r.Context())
 	if !ok {
@@ -162,6 +195,21 @@ func (h *Handler) CreateAdminTodo(w http.ResponseWriter, r *http.Request) {
 }
 
 // UpdateAdminTodo updates an admin todo's text (admin only)
+// UpdateAdminTodo updates a global default task's text.
+// @Summary Update global default task
+// @Description Update a global default task's text.
+// @Tags admin
+// @Accept json
+// @Produce json
+// @Param id path string true "Todo ID"
+// @Param todo body object true "New text"
+// @Success 200 {object} models.Todo
+// @Failure 400 {object} httputil.APIError
+// @Failure 401 {object} httputil.APIError
+// @Failure 403 {object} httputil.APIError
+// @Failure 404 {object} httputil.APIError
+// @Failure 500 {object} httputil.APIError
+// @Router /api/admin/todos/{id} [put]
 func (h *Handler) UpdateAdminTodo(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
@@ -216,6 +264,19 @@ func (h *Handler) UpdateAdminTodo(w http.ResponseWriter, r *http.Request) {
 }
 
 // DeleteAdminTodo deletes an admin todo (admin only)
+// DeleteAdminTodo deletes a global default task.
+// @Summary Delete global default task
+// @Description Delete a global default task.
+// @Tags admin
+// @Produce json
+// @Param id path string true "Todo ID"
+// @Success 200 {object} map[string]bool
+// @Failure 400 {object} httputil.APIError
+// @Failure 401 {object} httputil.APIError
+// @Failure 403 {object} httputil.APIError
+// @Failure 404 {object} httputil.APIError
+// @Failure 500 {object} httputil.APIError
+// @Router /api/admin/todos/{id} [delete]
 func (h *Handler) DeleteAdminTodo(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
@@ -250,6 +311,18 @@ func (h *Handler) DeleteAdminTodo(w http.ResponseWriter, r *http.Request) {
 }
 
 // ListUserTodos returns all todos for a specific user (admin only)
+// ListUserTodos returns all todos for a specific user.
+// @Summary List user's todos
+// @Description Get all personal (if shared) and default tasks for a specific user.
+// @Tags admin
+// @Produce json
+// @Param userId path string true "User ID"
+// @Success 200 {object} map[string][]models.Todo
+// @Failure 401 {object} httputil.APIError
+// @Failure 403 {object} httputil.APIError
+// @Failure 404 {object} httputil.APIError
+// @Failure 500 {object} httputil.APIError
+// @Router /api/admin/users/{userId}/todos [get]
 func (h *Handler) ListUserTodos(w http.ResponseWriter, r *http.Request) {
 	userID := r.PathValue("userId")
 	if userID == "" {
@@ -317,6 +390,20 @@ func (h *Handler) ListUserTodos(w http.ResponseWriter, r *http.Request) {
 }
 
 // CreateUserTodo creates a new todo for a specific user (admin only)
+// CreateUserTodo creates a new todo for a specific user.
+// @Summary Create todo for user
+// @Description Create a new personal todo for a specific user (admin created).
+// @Tags admin
+// @Accept json
+// @Produce json
+// @Param userId path string true "User ID"
+// @Param todo body object true "Todo content"
+// @Success 201 {object} models.Todo
+// @Failure 400 {object} httputil.APIError
+// @Failure 401 {object} httputil.APIError
+// @Failure 403 {object} httputil.APIError
+// @Failure 500 {object} httputil.APIError
+// @Router /api/admin/users/{userId}/todos [post]
 func (h *Handler) CreateUserTodo(w http.ResponseWriter, r *http.Request) {
 	userId := r.PathValue("userId")
 	if userId == "" {
@@ -380,6 +467,22 @@ func (h *Handler) CreateUserTodo(w http.ResponseWriter, r *http.Request) {
 }
 
 // UpdateUserTodo updates a specific user's todo status (admin only)
+// UpdateUserTodo updates a specific user's todo status or text.
+// @Summary Update user's todo
+// @Description Update a specific user's personal or default todo status/text.
+// @Tags admin
+// @Accept json
+// @Produce json
+// @Param userId path string true "User ID"
+// @Param todoId path string true "Todo ID"
+// @Param todo body object true "Update content"
+// @Success 200 {object} map[string]bool
+// @Failure 400 {object} httputil.APIError
+// @Failure 401 {object} httputil.APIError
+// @Failure 403 {object} httputil.APIError
+// @Failure 404 {object} httputil.APIError
+// @Failure 500 {object} httputil.APIError
+// @Router /api/admin/users/{userId}/todos/{todoId} [put]
 func (h *Handler) UpdateUserTodo(w http.ResponseWriter, r *http.Request) {
 	userID := r.PathValue("userId")
 	todoID := r.PathValue("todoId")
@@ -488,6 +591,20 @@ func (h *Handler) UpdateUserTodo(w http.ResponseWriter, r *http.Request) {
 }
 
 // DeleteUserTodo deletes a user-specific todo that was created by an admin (admin only)
+// DeleteUserTodo deletes a user-specific todo created by an admin.
+// @Summary Delete user's admin-created todo
+// @Description Delete a personal todo that was created for the user by an admin.
+// @Tags admin
+// @Produce json
+// @Param userId path string true "User ID"
+// @Param todoId path string true "Todo ID"
+// @Success 200 {object} map[string]bool
+// @Failure 400 {object} httputil.APIError
+// @Failure 401 {object} httputil.APIError
+// @Failure 403 {object} httputil.APIError
+// @Failure 404 {object} httputil.APIError
+// @Failure 500 {object} httputil.APIError
+// @Router /api/admin/users/{userId}/todos/{todoId} [delete]
 func (h *Handler) DeleteUserTodo(w http.ResponseWriter, r *http.Request) {
 	userID := r.PathValue("userId")
 	todoID := r.PathValue("todoId")

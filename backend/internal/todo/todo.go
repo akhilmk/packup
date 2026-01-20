@@ -30,6 +30,17 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux, middleware func(http.Handle
 	mux.HandleFunc("DELETE /api/todos/{id}", middleware(h.Delete))
 }
 
+// List todos
+// @Summary List todos
+// @Description Get a list of todos for the authenticated user, including default tasks unless excluded.
+// @Tags todos
+// @Accept  json
+// @Produce  json
+// @Param exclude_admin_todos query bool false "Exclude global default tasks"
+// @Success 200 {object} map[string][]models.Todo
+// @Failure 401 {object} httputil.APIError
+// @Failure 500 {object} httputil.APIError
+// @Router /api/todos [get]
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	userID, ok := auth.GetUserID(r.Context())
 	if !ok {
@@ -114,6 +125,18 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	httputil.WriteJSON(w, map[string]any{"todos": todos}, http.StatusOK)
 }
 
+// Create todo
+// @Summary Create todo
+// @Description Create a new personal todo item for the authenticated user.
+// @Tags todos
+// @Accept  json
+// @Produce  json
+// @Param todo body object true "Todo content"
+// @Success 201 {object} models.Todo
+// @Failure 400 {object} httputil.APIError
+// @Failure 401 {object} httputil.APIError
+// @Failure 500 {object} httputil.APIError
+// @Router /api/todos [post]
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	userID, ok := auth.GetUserID(r.Context())
 	if !ok {
@@ -181,6 +204,20 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	}, http.StatusCreated)
 }
 
+// Update todo
+// @Summary Update todo
+// @Description Update an existing todo item's text, status, or sharing status.
+// @Tags todos
+// @Accept  json
+// @Produce  json
+// @Param id path string true "Todo ID"
+// @Param todo body object true "Update fields"
+// @Success 200 {object} models.Todo
+// @Failure 400 {object} httputil.APIError
+// @Failure 403 {object} httputil.APIError
+// @Failure 404 {object} httputil.APIError
+// @Failure 500 {object} httputil.APIError
+// @Router /api/todos/{id} [put]
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	userID, ok := auth.GetUserID(r.Context())
 	if !ok {
@@ -353,6 +390,17 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	httputil.WriteJSON(w, t, http.StatusOK)
 }
 
+// Reorder todos
+// @Summary Reorder todos
+// @Description Update the order of todos for the authenticated user.
+// @Tags todos
+// @Accept  json
+// @Produce  json
+// @Param ids body object true "List of todo IDs in new order"
+// @Success 200 {object} map[string]bool
+// @Failure 400 {object} httputil.APIError
+// @Failure 500 {object} httputil.APIError
+// @Router /api/todos/reorder [put]
 func (h *Handler) Reorder(w http.ResponseWriter, r *http.Request) {
 	userID, ok := auth.GetUserID(r.Context())
 	if !ok {
@@ -426,6 +474,18 @@ func (h *Handler) Reorder(w http.ResponseWriter, r *http.Request) {
 	httputil.WriteSuccess(w)
 }
 
+// Delete todo
+// @Summary Delete todo
+// @Description Delete a todo item. Regular users can only delete their own non-admin-assigned tasks.
+// @Tags todos
+// @Produce  json
+// @Param id path string true "Todo ID"
+// @Success 200 {object} map[string]bool
+// @Failure 400 {object} httputil.APIError
+// @Failure 403 {object} httputil.APIError
+// @Failure 404 {object} httputil.APIError
+// @Failure 500 {object} httputil.APIError
+// @Router /api/todos/{id} [delete]
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	userID, ok := auth.GetUserID(r.Context())
 	if !ok {

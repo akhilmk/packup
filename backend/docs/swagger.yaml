@@ -1,0 +1,630 @@
+basePath: /
+definitions:
+  httputil.APIError:
+    properties:
+      error:
+        type: string
+    type: object
+  models.Todo:
+    properties:
+      created:
+        type: string
+      created_by_user_id:
+        type: string
+      hidden_from_user:
+        type: boolean
+      id:
+        type: string
+      is_default_task:
+        type: boolean
+      position:
+        type: number
+      shared_with_admin:
+        type: boolean
+      status:
+        type: string
+      text:
+        type: string
+      user_id:
+        type: string
+    type: object
+  models.User:
+    properties:
+      avatar_url:
+        type: string
+      created_at:
+        type: string
+      email:
+        type: string
+      google_id:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      role:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: This is the API server for the PackUp application.
+  title: PackUp API
+  version: "1.0"
+paths:
+  /api/admin/todos:
+    get:
+      description: Get a list of all global default tasks.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              items:
+                $ref: '#/definitions/models.Todo'
+              type: array
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httputil.APIError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httputil.APIError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httputil.APIError'
+      summary: List global default tasks
+      tags:
+      - admin
+    post:
+      consumes:
+      - application/json
+      description: Create a new global default task.
+      parameters:
+      - description: Todo text
+        in: body
+        name: todo
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Todo'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httputil.APIError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httputil.APIError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httputil.APIError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httputil.APIError'
+      summary: Create global default task
+      tags:
+      - admin
+  /api/admin/todos/{id}:
+    delete:
+      description: Delete a global default task.
+      parameters:
+      - description: Todo ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: boolean
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httputil.APIError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httputil.APIError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httputil.APIError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httputil.APIError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httputil.APIError'
+      summary: Delete global default task
+      tags:
+      - admin
+    put:
+      consumes:
+      - application/json
+      description: Update a global default task's text.
+      parameters:
+      - description: Todo ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: New text
+        in: body
+        name: todo
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Todo'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httputil.APIError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httputil.APIError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httputil.APIError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httputil.APIError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httputil.APIError'
+      summary: Update global default task
+      tags:
+      - admin
+  /api/admin/users:
+    get:
+      description: Get a list of all users excluding admins.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              items:
+                $ref: '#/definitions/models.User'
+              type: array
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httputil.APIError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httputil.APIError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httputil.APIError'
+      summary: List users
+      tags:
+      - admin
+  /api/admin/users/{userId}/todos:
+    get:
+      description: Get all personal (if shared) and default tasks for a specific user.
+      parameters:
+      - description: User ID
+        in: path
+        name: userId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              items:
+                $ref: '#/definitions/models.Todo'
+              type: array
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httputil.APIError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httputil.APIError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httputil.APIError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httputil.APIError'
+      summary: List user's todos
+      tags:
+      - admin
+    post:
+      consumes:
+      - application/json
+      description: Create a new personal todo for a specific user (admin created).
+      parameters:
+      - description: User ID
+        in: path
+        name: userId
+        required: true
+        type: string
+      - description: Todo content
+        in: body
+        name: todo
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Todo'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httputil.APIError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httputil.APIError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httputil.APIError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httputil.APIError'
+      summary: Create todo for user
+      tags:
+      - admin
+  /api/admin/users/{userId}/todos/{todoId}:
+    delete:
+      description: Delete a personal todo that was created for the user by an admin.
+      parameters:
+      - description: User ID
+        in: path
+        name: userId
+        required: true
+        type: string
+      - description: Todo ID
+        in: path
+        name: todoId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: boolean
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httputil.APIError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httputil.APIError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httputil.APIError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httputil.APIError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httputil.APIError'
+      summary: Delete user's admin-created todo
+      tags:
+      - admin
+    put:
+      consumes:
+      - application/json
+      description: Update a specific user's personal or default todo status/text.
+      parameters:
+      - description: User ID
+        in: path
+        name: userId
+        required: true
+        type: string
+      - description: Todo ID
+        in: path
+        name: todoId
+        required: true
+        type: string
+      - description: Update content
+        in: body
+        name: todo
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: boolean
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httputil.APIError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httputil.APIError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httputil.APIError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httputil.APIError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httputil.APIError'
+      summary: Update user's todo
+      tags:
+      - admin
+  /api/auth/google/login:
+    get:
+      description: Redirects to Google OAuth2 login page.
+      responses:
+        "307":
+          description: Temporary Redirect
+      summary: Login with Google
+      tags:
+      - auth
+  /api/auth/logout:
+    post:
+      description: Clear session cookie and delete session from DB.
+      responses:
+        "200":
+          description: OK
+      summary: Logout
+      tags:
+      - auth
+  /api/auth/me:
+    get:
+      description: Get current authenticated user details from session cookie.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.User'
+        "401":
+          description: unauthorized
+          schema:
+            type: string
+      summary: Get current user
+      tags:
+      - auth
+  /api/todos:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of todos for the authenticated user, including default
+        tasks unless excluded.
+      parameters:
+      - description: Exclude global default tasks
+        in: query
+        name: exclude_admin_todos
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              items:
+                $ref: '#/definitions/models.Todo'
+              type: array
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httputil.APIError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httputil.APIError'
+      summary: List todos
+      tags:
+      - todos
+    post:
+      consumes:
+      - application/json
+      description: Create a new personal todo item for the authenticated user.
+      parameters:
+      - description: Todo content
+        in: body
+        name: todo
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Todo'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httputil.APIError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httputil.APIError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httputil.APIError'
+      summary: Create todo
+      tags:
+      - todos
+  /api/todos/{id}:
+    delete:
+      description: Delete a todo item. Regular users can only delete their own non-admin-assigned
+        tasks.
+      parameters:
+      - description: Todo ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: boolean
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httputil.APIError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httputil.APIError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httputil.APIError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httputil.APIError'
+      summary: Delete todo
+      tags:
+      - todos
+    put:
+      consumes:
+      - application/json
+      description: Update an existing todo item's text, status, or sharing status.
+      parameters:
+      - description: Todo ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Update fields
+        in: body
+        name: todo
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Todo'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httputil.APIError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httputil.APIError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httputil.APIError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httputil.APIError'
+      summary: Update todo
+      tags:
+      - todos
+  /api/todos/reorder:
+    put:
+      consumes:
+      - application/json
+      description: Update the order of todos for the authenticated user.
+      parameters:
+      - description: List of todo IDs in new order
+        in: body
+        name: ids
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: boolean
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httputil.APIError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httputil.APIError'
+      summary: Reorder todos
+      tags:
+      - todos
+swagger: "2.0"
