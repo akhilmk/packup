@@ -60,7 +60,7 @@ The app will be available at [http://localhost:8080](http://localhost:8080).
 For more detailed information, please refer to our documentation:
 
 - **[Application Functionality](docs/requirements.md)**: Detailed breakdown of features, roles, and business logic.
-- **[Command Reference](docs/commands.md)**: A complete list of all available Makefile commands for development and production.
+- **[Developer Documentation](docs/developer-doc.md)**: A complete list of all available commands and development setup instructions.
 
 ---
 
