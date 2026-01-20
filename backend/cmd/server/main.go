@@ -52,8 +52,8 @@ func main() {
 	}
 	adminHandler.RegisterRoutes(mux, adminMw)
 
-	// Swagger documentation
-	mux.HandleFunc("GET /swagger/", httpSwagger.WrapHandler)
+	// Swagger documentation protected by admin-only auth
+	mux.HandleFunc("GET /swagger/", authHandler.AdminMiddlewareWithRedirect(httpSwagger.WrapHandler))
 
 	// Serve static frontend files
 	staticDir := "frontend/dist"

@@ -48,8 +48,14 @@ func (h *Handler) GoogleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// In real world, use 'state' parameter to prevent CSRF
-	state := "random-state"
+	// Get return_to path from query params, default to "/"
+	returnTo := r.URL.Query().Get("return_to")
+	if returnTo == "" {
+		returnTo = "/"
+	}
+
+	// Use state to pass the return path through the OAuth flow
+	state := base64.URLEncoding.EncodeToString([]byte(returnTo))
 
 	scope := "https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile"
 	url := fmt.Sprintf("https://accounts.google.com/o/oauth2/v2/auth?client_id=%s&redirect_uri=%s&response_type=code&scope=%s&state=%s",
@@ -99,7 +105,16 @@ func (h *Handler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
 		Secure:   os.Getenv("SESSION_SECURE") == "true",
 	})
 
-	http.Redirect(w, r, "/", http.StatusSeeOther)
+	// Decode return path from state
+	state := r.URL.Query().Get("state")
+	targetPath := "/"
+	if state != "" {
+		if decoded, err := base64.URLEncoding.DecodeString(state); err == nil {
+			targetPath = string(decoded)
+		}
+	}
+
+	http.Redirect(w, r, targetPath, http.StatusSeeOther)
 }
 
 // Me returns the current authenticated user.
@@ -145,6 +160,8 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 		Expires:  time.Now().Add(-1 * time.Hour),
 		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		Secure:   os.Getenv("SESSION_SECURE") == "true",
 	})
 
 	w.WriteHeader(http.StatusOK)
@@ -162,6 +179,39 @@ func (h *Handler) Middleware(next http.HandlerFunc) http.HandlerFunc {
 		user, err := h.getUserBySession(r.Context(), cookie.Value)
 		if err != nil {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		ctx := SetUserContext(r.Context(), user.ID, user.Role)
+		next(w, r.WithContext(ctx))
+	}
+}
+
+// AdminMiddlewareWithRedirect allows only admins and redirects to login if unauthenticated.
+// For logged-in non-admins, it returns 403 Forbidden.
+func (h *Handler) AdminMiddlewareWithRedirect(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Prevent caching of protected pages (like Swagger UI)
+		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+		w.Header().Set("Pragma", "no-cache")
+		w.Header().Set("Expires", "0")
+
+		cookie, err := r.Cookie("session_token")
+		if err != nil {
+			loginURL := "/api/auth/google/login?return_to=" + r.URL.Path
+			http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+			return
+		}
+
+		user, err := h.getUserBySession(r.Context(), cookie.Value)
+		if err != nil {
+			loginURL := "/api/auth/google/login?return_to=" + r.URL.Path
+			http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+			return
+		}
+
+		if user.Role != string(models.RoleAdmin) {
+			http.Error(w, "Forbidden: Admin access required", http.StatusForbidden)
 			return
 		}
 
