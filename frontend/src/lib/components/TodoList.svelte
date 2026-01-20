@@ -3,6 +3,7 @@
   import { api, type Todo, type User } from "../api";
   import TodoItem from "./TodoItem.svelte";
   import AddTodo from "./AddTodo.svelte";
+  import Logo from "./Logo.svelte";
   import { flip } from "svelte/animate";
 
   export let user: User | null = null;
@@ -85,15 +86,7 @@
     <!-- Packup Icon -->
     <div class="mb-4 flex justify-center">
       <div class="w-16 h-16 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
-        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 2C7 2 3 6 3 11c0 6 9 13 9 13s9-7 9-13c0-5-4-9-9-9z" />
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8l1.5 1.5 3-3" />
-          <line x1="13" y1="8" x2="17" y2="8" stroke-width="2" stroke-linecap="round" />
-          <rect x="7" y="12" width="3" height="3" rx="0.5" stroke-width="2" />
-          <line x1="12" y1="13.5" x2="17" y2="13.5" stroke-width="2" stroke-linecap="round" />
-          <rect x="7" y="16" width="3" height="3" rx="0.5" stroke-width="2" />
-          <line x1="12" y1="17.5" x2="17" y2="17.5" stroke-width="2" stroke-linecap="round" />
-        </svg>
+        <Logo className="w-8 h-8 text-white" />
       </div>
     </div>
     

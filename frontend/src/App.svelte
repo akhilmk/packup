@@ -3,6 +3,7 @@
   import TodoList from "./lib/components/TodoList.svelte";
   import AdminDashboard from "./lib/components/AdminDashboard.svelte";
   import Login from "./lib/components/Login.svelte";
+  import Logo from "./lib/components/Logo.svelte";
   import { api, type User } from "./lib/api";
 
   let user: User | null = null;
@@ -47,6 +48,13 @@
   {:else if user}
     <div class="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50/20">
       <div class="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-lg flex items-center justify-center shadow-md">
+            <Logo className="w-4 h-4 text-white" />
+          </div>
+          <span class="text-lg font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600 hidden sm:block">PackUp</span>
+        </div>
+
         <div class="flex items-center space-x-3 bg-white/50 backdrop-blur-sm px-3 py-1.5 rounded-full border border-white/50">
           {#if user.avatar_url}
             <img src={user.avatar_url} alt={user.name} class="w-8 h-8 rounded-full border border-indigo-100" />

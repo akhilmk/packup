@@ -93,6 +93,8 @@ run:
 		--name $(CONTAINER_NAME) \
 		-p 8080:8080 \
 		--network packup-dev \
+		-v $(PWD)/frontend/dist:/app/frontend/dist:ro \
+		-v $(PWD)/backend/migrations:/app/migrations:ro \
 		-e DB_USER=$(DB_USER) \
 		-e DB_PASS=$(DB_PASS) \
 		-e DB_NAME=$(DB_NAME) \

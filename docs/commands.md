@@ -13,7 +13,8 @@ This project uses a `Makefile` to simplify development tasks. Environment variab
 
 - `make frontend-install`: **[First Time]** Installs the required NPM dependencies for the frontend.
 - `make frontend-audit-fix`: If audit error occurs, run this command to fix it.
-- `make docker`: Performs a "deep clean" (removes old containers, images, and build files), then builds both the frontend and backend, and finally creates a new local Docker image.
+- `make build-frontend`: **[Develop Time]** Build only frontend and copy to bin folder, use this once app is up and UI changes need to copy to running container.
+- `make docker`: Removes old containers, images, and build files, then builds both the frontend and backend, and finally creates a new local Docker image.
 
 
 ## Runtime Commands
