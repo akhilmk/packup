@@ -17,25 +17,25 @@ GROUP_ID := $(shell id -g)
 COMPOSE_ENV := USER_ID=$(USER_ID) GROUP_ID=$(GROUP_ID)
 DOCKER_EXEC_NODE := docker exec -i packup-node-dev
 
-.PHONY: dev-up dev-down dev-logs db-shell \
+.PHONY: dev-build-up dev-build-down dev-build-logs dev-build-db-shell \
         frontend-install frontend-audit-fix frontend-build build-backend build-frontend build-all \
         docker run logs app-shell go-test swagger \
-        clean docker-clean help
+        clean docker-stop docker-clean help
 
 # --- Database Commands ---
 
-dev-up:
+dev-build-up:
 	@echo "Starting dev environment (db + node builder)..."
 	$(COMPOSE_ENV) $(DOCKER_COMPOSE) -f $(COMPOSE_FILE) --env-file docker/.env.dev up -d
 
-dev-down:
+dev-build-down:
 	@echo "Stopping dev environment..."
 	$(COMPOSE_ENV) $(DOCKER_COMPOSE) -f $(COMPOSE_FILE) --env-file docker/.env.dev down -v
 
-dev-logs:
+dev-build-logs:
 	$(COMPOSE_ENV) $(DOCKER_COMPOSE) -f $(COMPOSE_FILE) --env-file docker/.env.dev logs -f
 
-db-shell:
+dev-build-db-shell:
 	$(COMPOSE_ENV) $(DOCKER_COMPOSE) -f $(COMPOSE_FILE) --env-file docker/.env.dev exec postgres psql -U $(DB_USER) -d $(DB_NAME)
 
 # --- Build Commands ---
@@ -77,7 +77,7 @@ build-backend:
 build-all: build-backend build-frontend
 	@echo "✓ All artifacts built in bin/"
 
-docker: docker-clean clean build-all
+docker: docker-stop docker-clean clean build-all
 	@echo "Building Docker image $(IMAGE_NAME):latest..."
 	docker build -t $(IMAGE_NAME):latest -f docker/Dockerfile .
 	@echo "✓ Docker image built"
@@ -134,18 +134,21 @@ clean:
 
 docker-clean:
 	@echo "Stopping and removing Docker images/containers..."
-	-docker stop $(CONTAINER_NAME) 2>/dev/null
 	-docker rm $(CONTAINER_NAME) 2>/dev/null
 	-docker rmi $(IMAGE_NAME):latest 2>/dev/null
+
+docker-stop:
+	@echo "Stopping Docker container..."
+	-docker stop $(CONTAINER_NAME) 2>/dev/null
 
 help:
 	@echo "Usage: make [target]"
 	@echo ""
 	@echo "Development Commands:"
-	@echo "  dev-up         - Start dev environment (db + node builder)"
-	@echo "  dev-down       - Stop dev environment and remove volumes"
-	@echo "  dev-logs       - Follow dev environment logs"
-	@echo "  db-shell      - Open PSQL shell in database"
+	@echo "  dev-build-up    - Start dev environment (db + node builder)"
+	@echo "  dev-build-down  - Stop dev environment and remove volumes"
+	@echo "  dev-build-logs  - Follow dev environment logs"
+	@echo "  dev-build-db-shell  - Open PSQL shell in database"
 	@echo ""
 	@echo "Build Commands:"
 	@echo "  docker         - Full clean build and docker image creation"
