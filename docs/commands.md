@@ -4,17 +4,17 @@ This project uses a `Makefile` to simplify development tasks. Environment variab
 
 ## Development Environment Commands
 
-- `make dev`: Starts the development PostgreSQL database and persistent Node.js builder in the background.
+- `make dev-up`: Starts the development PostgreSQL database and persistent Node.js builder in the background.
 - `make dev-down`: Stops the dev environment and removes the containers and volumes (data is reset).
 - `make dev-logs`: Follows the output logs of the dev environment containers.
-- `make dev-shell`: Opens an interactive PSQL shell within the database container.
+- `make db-shell`: Opens an interactive PSQL shell within the database container.
 
 ## Build Commands
 
 - `make frontend-install`: **[First Time]** Installs the required NPM dependencies for the frontend.
-- `make frontend-audit-fix`: If audit error occurs, run this command to fix it.
-- `make build-frontend`: **[Develop Time]** Build only frontend and copy to bin folder, use this once app is up and UI changes need to copy to running container.
-- `make docker`: Removes old containers, images, and build files, then builds both the frontend and backend, and finally creates a new local Docker image.
+- `make frontend-audit-fix`: If audit error occurs during `make frontend-install`, run this command to fix it.
+- `make build-frontend`: **[Develop Time]** Build only frontend and copy to bin folder, copy UI changes to running container (using volume path mount).
+- `make docker`: **[App DockerImage]** Removes old containers, images, and build files, then builds both the frontend and backend, and finally **creates a new local Docker image**.
 
 
 ## Runtime Commands

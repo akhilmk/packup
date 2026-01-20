@@ -7,23 +7,11 @@ import (
 	"os"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/joho/godotenv"
 )
 
 func New(ctx context.Context) (*pgxpool.Pool, error) {
-	// Load environment file `env.dev` if present
-	// We might need to adjust the path if running from a different working dir,
-	// but usually if run from root, just ".env.dev" or similar is fine.
-	// The original code used "env.dev".
-	// Try loading environment files from various locations
-	envFiles := []string{"env.dev", ".env.dev", "../.env.dev", "../../.env.dev"}
-	for _, file := range envFiles {
-		if err := godotenv.Load(file); err == nil {
-			log.Printf("loaded env file: %s", file)
-			break
-		}
-	}
 
+	// The application relies on environment variables provided by the OS/Docker runtime.
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
 		user := os.Getenv("DB_USER")
@@ -84,22 +72,10 @@ func ensureSchema(ctx context.Context, db *pgxpool.Pool) error {
 		log.Println("Schema loaded previously, but running again to ensure updates...")
 	}
 
-	// Try to find and load schema_v1.sql from various paths
-	schemaPaths := []string{
-		"migrations/schema_v1.sql",
-		"backend/migrations/schema_v1.sql",
-		"../migrations/schema_v1.sql",
-		"../../migrations/schema_v1.sql",
-	}
-
-	var schemaSQL []byte
-	var schemaPath string
-	for _, path := range schemaPaths {
-		if data, err := os.ReadFile(path); err == nil {
-			schemaSQL = data
-			schemaPath = path
-			break
-		}
+	schemaPath := "migrations/schema_v1.sql"
+	schemaSQL, err := os.ReadFile(schemaPath)
+	if err != nil {
+		return fmt.Errorf("schema file not found at %s: %w", schemaPath, err)
 	}
 
 	if schemaSQL == nil {

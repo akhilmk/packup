@@ -17,14 +17,14 @@ GROUP_ID := $(shell id -g)
 COMPOSE_ENV := USER_ID=$(USER_ID) GROUP_ID=$(GROUP_ID)
 DOCKER_EXEC_NODE := docker exec -i packup-node-dev
 
-.PHONY: dev dev-down dev-logs dev-shell \
+.PHONY: dev-up dev-down dev-logs db-shell \
         frontend-install frontend-audit-fix frontend-build build-backend build-frontend build-all \
         docker run logs app-shell go-test \
         clean docker-clean help
 
 # --- Database Commands ---
 
-dev:
+dev-up:
 	@echo "Starting dev environment (db + node builder)..."
 	$(COMPOSE_ENV) $(DOCKER_COMPOSE) -f $(COMPOSE_FILE) --env-file docker/.env.dev up -d
 
@@ -35,7 +35,7 @@ dev-down:
 dev-logs:
 	$(COMPOSE_ENV) $(DOCKER_COMPOSE) -f $(COMPOSE_FILE) --env-file docker/.env.dev logs -f
 
-dev-shell:
+db-shell:
 	$(COMPOSE_ENV) $(DOCKER_COMPOSE) -f $(COMPOSE_FILE) --env-file docker/.env.dev exec postgres psql -U $(DB_USER) -d $(DB_NAME)
 
 # --- Build Commands ---
@@ -138,10 +138,10 @@ help:
 	@echo "Usage: make [target]"
 	@echo ""
 	@echo "Development Commands:"
-	@echo "  dev            - Start dev environment (db + node builder)"
+	@echo "  dev-up         - Start dev environment (db + node builder)"
 	@echo "  dev-down       - Stop dev environment and remove volumes"
 	@echo "  dev-logs       - Follow dev environment logs"
-	@echo "  dev-shell      - Open PSQL shell in database"
+	@echo "  db-shell      - Open PSQL shell in database"
 	@echo ""
 	@echo "Build Commands:"
 	@echo "  docker         - Full clean build and docker image creation"
