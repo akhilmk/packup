@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"time"
 
@@ -58,10 +59,10 @@ func (h *Handler) GoogleLogin(w http.ResponseWriter, r *http.Request) {
 	state := base64.URLEncoding.EncodeToString([]byte(returnTo))
 
 	scope := "https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile"
-	url := fmt.Sprintf("https://accounts.google.com/o/oauth2/v2/auth?client_id=%s&redirect_uri=%s&response_type=code&scope=%s&state=%s",
-		clientID, redirectURI, scope, state)
+	authURL := fmt.Sprintf("https://accounts.google.com/o/oauth2/v2/auth?client_id=%s&redirect_uri=%s&response_type=code&scope=%s&state=%s",
+		url.QueryEscape(clientID), url.QueryEscape(redirectURI), url.QueryEscape(scope), url.QueryEscape(state))
 
-	http.Redirect(w, r, url, http.StatusTemporaryRedirect)
+	http.Redirect(w, r, authURL, http.StatusTemporaryRedirect)
 }
 
 func (h *Handler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
@@ -266,10 +267,10 @@ func (h *Handler) exchangeCode(code string) (string, error) {
 		return "", fmt.Errorf("client credentials missing")
 	}
 
-	url := fmt.Sprintf("https://oauth2.googleapis.com/token?client_id=%s&client_secret=%s&code=%s&grant_type=authorization_code&redirect_uri=%s",
-		clientID, clientSecret, code, redirectURI)
+	tokenURL := fmt.Sprintf("https://oauth2.googleapis.com/token?client_id=%s&client_secret=%s&code=%s&grant_type=authorization_code&redirect_uri=%s",
+		url.QueryEscape(clientID), url.QueryEscape(clientSecret), url.QueryEscape(code), url.QueryEscape(redirectURI))
 
-	req, _ := http.NewRequest("POST", url, nil)
+	req, _ := http.NewRequest("POST", tokenURL, nil)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return "", err

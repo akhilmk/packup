@@ -1,3 +1,5 @@
+name: packup-dev-build
+
 services:
   postgres:
     image: postgres:15
@@ -9,7 +11,7 @@ services:
     ports:
       - "5432:5432"
     networks:
-      - packup-dev
+      - packup-dev-build
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -28,11 +30,11 @@ services:
     user: "${USER_ID:-1000}:${GROUP_ID:-1000}"
     entrypoint: ["tail", "-f", "/dev/null"]
     networks:
-      - packup-dev
+      - packup-dev-build
 
 networks:
-  packup-dev:
-    name: packup-dev
+  packup-dev-build:
+    name: packup-dev-build
 
 volumes:
   pgdata:

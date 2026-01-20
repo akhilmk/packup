@@ -1,20 +1,9 @@
 # Makefile for production and full solution deployment
 
-# Load environment variables from .env.prod
-# This handles both running from root or from inside the docker/ folder
-ifneq (,$(wildcard docker/.env.prod))
-    include docker/.env.prod
-    export
-else ifneq (,$(wildcard .env.prod))
-    include .env.prod
-    export
-endif
 
 # Configuration
 DOCKER_COMPOSE ?= docker compose
 IMAGE_NAME := packup
-# Fallback if not in env file
-DOCKER_HUB_USER ?= akhilmk
 
 .PHONY: prod-up prod-down
 

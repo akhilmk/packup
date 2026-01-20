@@ -84,7 +84,7 @@ docker: docker-clean clean build-all
 
 # --- Runtime Commands ---
 
-# "--network packup-dev" - use network of dev docker compose.
+# "--network packup-dev-build" - use network of dev docker compose.
 # "-e DB_HOST=packup-dev-db" - use db host name from dev docker compose.
 run:
 	@echo "Starting $(CONTAINER_NAME) container..."
@@ -92,7 +92,7 @@ run:
 	docker run -d \
 		--name $(CONTAINER_NAME) \
 		-p 8080:8080 \
-		--network packup-dev \
+		--network packup-dev-build \
 		-v $(PWD)/frontend/dist:/app/frontend/dist:ro \
 		-v $(PWD)/backend/migrations:/app/migrations:ro \
 		-e DB_USER=$(DB_USER) \
@@ -103,9 +103,9 @@ run:
 		-e SSLMODE=$(SSLMODE) \
 		-e PORT=8080 \
 		-e ADMIN_EMAILS=$(ADMIN_EMAILS) \
-		-e GOOGLE_CLIENT_ID=$(GOOGLE_CLIENT_ID) \
-		-e GOOGLE_CLIENT_SECRET=$(GOOGLE_CLIENT_SECRET) \
-		-e GOOGLE_REDIRECT_URI=$(GOOGLE_REDIRECT_URI) \
+		-e GOOGLE_CLIENT_ID=$(GOOGLE_CLIENT_ID_LOCAL) \
+		-e GOOGLE_CLIENT_SECRET=$(GOOGLE_CLIENT_SECRET_LOCAL) \
+		-e GOOGLE_REDIRECT_URI=$(GOOGLE_REDIRECT_URI_LOCAL) \
 		$(IMAGE_NAME):latest
 	@echo "✓ App running at http://localhost:8080"
 

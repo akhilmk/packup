@@ -1,4 +1,4 @@
-name: packup-dev
+name: ${COMPOSE_NAME}
 
 services:
   packup:
@@ -16,9 +16,9 @@ services:
       - PORT=${PORT:-8080}
       - SESSION_SECURE=${SESSION_SECURE:-false}
       - ADMIN_EMAILS=${ADMIN_EMAILS}
-      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
-      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
-      - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID_COMPOSE}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET_COMPOSE}
+      - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI_COMPOSE}
     depends_on:
       postgres:
         condition: service_healthy
@@ -75,7 +75,7 @@ services:
 
 networks:
   default:
-    name: packup-dev-nw
+    name: ${COMPOSE_NAME}
 
 volumes:
   packup-db-data:
