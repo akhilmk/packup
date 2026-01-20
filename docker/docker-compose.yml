@@ -1,7 +1,9 @@
+name: packup-dev
+
 services:
   packup:
     # Build image using: make docker-build (or pull from Docker Hub)
-    image: ${DOCKER_HUB_USER:-akhilmk}/packup:latest
+    image: ${APP_IMAGE}
     container_name: packup-app
     restart: always
     environment:
@@ -44,11 +46,13 @@ services:
       retries: 5
 
   traefik:
-    image: traefik:v2.10
+    image: traefik:v2.11
     container_name: traefik
     restart: always
+    environment:
+      - "DOCKER_HOST=unix:///var/run/docker.sock"
     command:
-      - "--api.insecure=false"
+      - "--api.insecure=true"
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
       - "--entrypoints.web.address=:80"
@@ -62,9 +66,16 @@ services:
     ports:
       - "80:80"
       - "443:443"
+      - "8081:8080"
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
       - "../letsencrypt:/letsencrypt"
+    security_opt:
+      - label:disable
+
+networks:
+  default:
+    name: packup-dev-nw
 
 volumes:
   packup-db-data:

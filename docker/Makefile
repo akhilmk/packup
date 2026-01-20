@@ -16,42 +16,26 @@ IMAGE_NAME := packup
 # Fallback if not in env file
 DOCKER_HUB_USER ?= akhilmk
 
-.PHONY: docker-release prod-up prod-down build-all docker-build
+.PHONY: prod-up prod-down
 
-# --- Pipeline / Release Commands (Run from project root) ---
-
-# Complete release: build everything and create Docker image, then push to Hub
-docker-release: build-all docker-build
-	@echo "Tagging and pushing image to Docker Hub..."
-	docker tag $(IMAGE_NAME):latest $(DOCKER_HUB_USER)/$(IMAGE_NAME):latest
-	docker push $(DOCKER_HUB_USER)/$(IMAGE_NAME):latest
-	@echo "✓ Release $(DOCKER_HUB_USER)/$(IMAGE_NAME):latest pushed successfully"
-
-# Delegate source building to the root Makefile to maintain context
-build-all:
-	$(MAKE) build-all
-
-docker-build:
-	$(MAKE) docker-build
-
-# --- Production Deployment Commands (Run from project root) ---
+# --- docker compose command for production and staging
 
 prod-up:
 	@echo "Starting production stack..."
-	$(DOCKER_COMPOSE) -f docker/docker-compose.yml --env-file docker/.env.prod up -d
+	$(DOCKER_COMPOSE) -f docker-compose.yml --env-file .env.prod up -d
 	@echo "✓ Production stack is up"
 
 prod-down:
 	@echo "Stopping production stack..."
-	$(DOCKER_COMPOSE) -f docker/docker-compose.yml --env-file docker/.env.prod down
+	$(DOCKER_COMPOSE) -f docker-compose.yml --env-file .env.prod down
 	@echo "✓ Production stack is down"
 
 dev-up:
 	@echo "Starting development stack..."
-	$(DOCKER_COMPOSE) -f docker/docker-compose.yml --env-file docker/.env.dev up -d
+	$(DOCKER_COMPOSE) -f docker-compose.yml --env-file .env.dev up -d
 	@echo "✓ Development stack is up"
 
 dev-down:
 	@echo "Stopping development stack..."
-	$(DOCKER_COMPOSE) -f docker/docker-compose.yml --env-file docker/.env.dev down
+	$(DOCKER_COMPOSE) -f docker-compose.yml --env-file .env.dev down
 	@echo "✓ Development stack is down"
