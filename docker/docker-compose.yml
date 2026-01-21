@@ -17,7 +17,7 @@ services:
       retries: 5
 
   packup-app:
-    image: ${APP_IMAGE}
+    image: ${APP_IMAGE}:${APP_IMAGE_TAG}
     restart: always
     environment:
       - DB_USER=${DB_USER}

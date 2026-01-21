@@ -9,7 +9,7 @@ endif
 # Configuration
 COMPOSE_FILE ?= docker/docker-compose.dev.yml
 DOCKER_COMPOSE ?= docker compose
-IMAGE_NAME := packup
+IMAGE_NAME := akhilmk01/packup
 CONTAINER_NAME := packup
 NODE_IMAGE := node:24-alpine
 USER_ID := $(shell id -u)
@@ -106,7 +106,7 @@ run:
 		-e GOOGLE_CLIENT_ID=$(GOOGLE_CLIENT_ID_LOCAL) \
 		-e GOOGLE_CLIENT_SECRET=$(GOOGLE_CLIENT_SECRET_LOCAL) \
 		-e GOOGLE_REDIRECT_URI=$(GOOGLE_REDIRECT_URI_LOCAL) \
-		$(IMAGE_NAME):latest
+		$(APP_IMAGE):$(APP_IMAGE_TAG)
 	@echo "✓ App running at http://localhost:8080"
 
 logs:

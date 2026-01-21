@@ -3,7 +3,6 @@
 
 # Configuration
 DOCKER_COMPOSE ?= docker compose
-IMAGE_NAME := packup
 
 .PHONY: prod-up prod-down
 
