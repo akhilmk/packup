@@ -249,8 +249,16 @@
         <Logo className="w-6 h-6 text-white" />
       </div>
       <div>
-        <h1 class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600">PackUp</h1>
-        <p class="text-sm text-slate-500 font-medium">Admin Dashboard</p>
+        <div class="flex items-center gap-2">
+          <h1 class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600 tracking-tight leading-none">PackUp</h1>
+          <div class="flex items-center mt-1">
+            <span class="text-[8px] font-bold uppercase tracking-widest text-slate-400 mr-1">by</span>
+            <span class="text-[10px] font-bold tracking-wide text-slate-600" style="font-family: 'Montserrat', sans-serif;">
+              Orama Holidays
+            </span>
+          </div>
+        </div>
+        <p class="text-xs text-slate-500 font-medium mt-1">Admin Dashboard</p>
       </div>
     </div>
     

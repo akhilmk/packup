@@ -11,10 +11,19 @@
     </div>
     
     
-    <h1 class="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600 mb-3 tracking-tight">
-      PackUp
-    </h1>
-    <p class="text-slate-500 mb-8 font-medium">
+    <div class="flex flex-col items-center mb-10">
+      <h1 class="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600 tracking-tight mb-2 pb-1 px-2">
+        PackUp
+      </h1>
+      <div class="flex items-center gap-2">
+        <span class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 pt-0.5">by</span>
+        <span class="text-xl font-bold tracking-wide text-slate-700" style="font-family: 'Montserrat', sans-serif;">
+          Orama Holidays
+        </span>
+      </div>
+    </div>
+    
+    <p class="text-slate-500 mt-8 mb-8 font-medium">
       Your journey, organized. 
       <br /> 
       Track tasks as you travel through life.

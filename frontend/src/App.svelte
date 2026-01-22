@@ -34,11 +34,7 @@
   }
 </script>
 
-<svelte:head>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-</svelte:head>
+
 
 <main>
   {#if loading}
@@ -48,11 +44,21 @@
   {:else if user}
     <div class="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50/20">
       <div class="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-3">
           <div class="w-8 h-8 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-lg flex items-center justify-center shadow-md">
             <Logo className="w-4 h-4 text-white" />
           </div>
-          <span class="text-lg font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600 hidden sm:block">PackUp</span>
+          <div class="hidden sm:block">
+            <div class="flex items-center gap-1.5 leading-none">
+              <span class="text-lg font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600 tracking-tight">PackUp</span>
+              <div class="flex items-center mt-0.5">
+                <span class="text-[7px] font-bold uppercase tracking-widest text-slate-400 mr-1">by</span>
+                <span class="text-[9px] font-bold tracking-wide text-slate-600" style="font-family: 'Montserrat', sans-serif;">
+                  Orama Holidays
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="flex items-center space-x-3 bg-white/50 backdrop-blur-sm px-3 py-1.5 rounded-full border border-white/50">
