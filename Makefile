@@ -7,7 +7,7 @@ ifneq (,$(wildcard docker/.env.dev))
 endif
 
 # Configuration
-COMPOSE_FILE ?= docker/docker-compose.dev.yml
+COMPOSE_FILE ?= docker/compose.dev.yaml
 DOCKER_COMPOSE ?= docker compose
 IMAGE_NAME := akhilmk01/packup
 CONTAINER_NAME := packup
