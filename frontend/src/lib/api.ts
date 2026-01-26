@@ -177,6 +177,11 @@ export const api = {
             method: "DELETE",
         });
         await handleResponse<{ success: boolean }>(response);
+    },
+
+    async getConfig(): Promise<{ chatbot_enabled: boolean; chatbot_api_url: string; chatbot_api_token: string }> {
+        const response = await fetch(`${API_BASE_URL}/config`);
+        return handleResponse(response);
     }
 };
 

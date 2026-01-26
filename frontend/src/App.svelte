@@ -5,14 +5,21 @@
   import Login from "./lib/components/Login.svelte";
   import Logo from "./lib/components/Logo.svelte";
   import { api, type User } from "./lib/api";
+  import { loadRuntimeConfig, clearConfigCache } from "./lib/config";
+  import ChatAssistant from "./lib/components/ChatAssistant.svelte";
 
   let user: User | null = null;
   let loading = true;
   let showAdminDashboard = true; // For admins, toggle between dashboard and personal todos
 
+  $: chatMaxWidth = (user?.role === 'admin' && showAdminDashboard) ? "max-w-6xl" : "max-w-2xl";
+
   onMount(async () => {
     try {
       user = await api.getMe();
+      // Load runtime configuration from backend (now that we are authenticated)
+      loadRuntimeConfig();
+      
       // Default to admin dashboard for admins
       if (user.role === 'admin') {
         showAdminDashboard = true;
@@ -27,6 +34,8 @@
   async function handleLogout() {
     try {
       await api.logout();
+      clearConfigCache();
+      sessionStorage.removeItem('packup_chat_messages');
       user = null;
     } catch (e) {
       console.error(e);
@@ -94,9 +103,10 @@
       {:else}
         <TodoList {user} />
       {/if}
+
+      <ChatAssistant maxWidth={chatMaxWidth} />
     </div>
   {:else}
     <Login />
   {/if}
 </main>
-

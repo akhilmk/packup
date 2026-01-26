@@ -8,6 +8,7 @@ import (
 
 	"github.com/akhilmk/packup/internal/admin"
 	"github.com/akhilmk/packup/internal/auth"
+	"github.com/akhilmk/packup/internal/config"
 	"github.com/akhilmk/packup/internal/database"
 	"github.com/akhilmk/packup/internal/todo"
 
@@ -34,16 +35,17 @@ func main() {
 	authHandler := auth.NewHandler(pool)
 	todoHandler := todo.NewHandler(pool)
 	adminHandler := admin.NewHandler(pool)
+	configHandler := config.NewHandler()
 
 	mux := http.NewServeMux()
 
 	// Register Auth routes
 	authHandler.RegisterRoutes(mux)
 
-	// Register Protected Todo API routes
-	// we pass the auth middleware to the handler, so it can wrap its routes
+	// Register Protected API routes (require authentication)
 	mw := authHandler.Middleware
 	todoHandler.RegisterRoutes(mux, mw)
+	configHandler.RegisterRoutes(mux, mw)
 
 	// Register Admin routes (require admin role)
 	// We wrap the standard auth middleware AND the admin check
