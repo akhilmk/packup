@@ -11,15 +11,15 @@ This project uses a `Makefile` to simplify development tasks. Environment variab
 
 ## Build Commands
 
-- `make frontend-install`: **[First Time]** Installs the required NPM dependencies for the frontend.
+- `make frontend-install`: **[First Time]** Installs the required NPM dependencies for the frontend. (Runs `npm install` inside node container)
 - `make frontend-audit-fix`: If audit error occurs during `make frontend-install`, run this command to fix it.
-- `make build-frontend`: **[Develop Time]** Build only frontend and copy to bin folder, copy UI changes to running container (using volume path mount).
-- `make docker`: **[App Docker Image]** Removes old containers, images, and build files, then builds both the frontend and backend, and finally **creates a new local Docker image**.
+- `make build-frontend`: **[Develop Time]** Build only frontend and copy to bin folder, copy UI changes to running container. (Runs `frontend-build`)
+- `make docker`: **[App Docker Image]** Removes old containers, images, and build files, then builds both the frontend and backend, and finally **creates a new local Docker image**. (Runs `docker-stop docker-clean clean build-all`)
 
 
 ## App Run Commands
 
-- `make run`: Starts the application container locally. It automatically handles container removal if one is already running.
+- `make run`: Starts the application container locally. It automatically handles container removal if one is already running. (Runs `docker rm` then `docker run`)
 - `make logs`: Follows the application container logs.
 - `make app-shell`: Opens an interactive shell inside the running application container for debugging.
 
@@ -27,21 +27,14 @@ This project uses a `Makefile` to simplify development tasks. Environment variab
 
 - `make clean`: Deletes local build artifacts (`bin/` and `frontend/dist`).
 - `make docker-stop`: Stops the application container.
-- `make docker-clean`: Removes the application container and deletes the local Docker image.
+- `make docker-clean`: Removes the application container and deletes the local Docker image. (Runs `docker rm` and `docker rmi`)
 - `make help`: Displays a summary of all available commands.
 
 ## Testing Commands
 
 - `make go-test`: Runs all Go backend unit tests with verbose output.
 
-## Docker Compose Commands
 
-Run from `/docker` folder:
-
-- `make dev-up`: Starts the development stack (App + DB + Traefik) using the development compose file and environment.
-- `make dev-down`: Stops the development stack.
-- `make prod-up`: Starts the production stack (App + DB + Traefik) using the production compose file and environment.
-- `make prod-down`: Stops the production stack.
 
 
 ## API Documentation Commands (Swagger)

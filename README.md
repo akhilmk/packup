@@ -42,7 +42,7 @@ PackUp allows teams to manage global requirements while giving individual users 
 
 2. **Start the database**:
    ```bash
-   make db
+   make dev-build-up
    ```
 
 3. **Build and Run the application**:
