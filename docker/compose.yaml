@@ -1,5 +1,8 @@
 
 # use this compose with existing traefik setup
+# set traefik network name [TRAEFIK_NETWORK] in .env file
+
+name: ${COMPOSE_NAME}
 
 services:
   postgres-db:
@@ -41,7 +44,7 @@ services:
         condition: service_healthy
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.packup-app.rule=Host(`${DOMAIN:-localhost}`)"
+      - "traefik.http.routers.packup-app.rule=Host(`${FULL_DOMAIN:-localhost}`)"
       - "traefik.http.routers.packup-app.entrypoints=websecure"
       - "traefik.http.routers.packup-app.tls.certresolver=${TRAEFIK_CERT_RESOLVER:-myresolver}"
       - "traefik.http.services.packup-app.loadbalancer.server.port=${PORT}"
