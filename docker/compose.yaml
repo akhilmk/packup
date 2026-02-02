@@ -44,6 +44,7 @@ services:
         condition: service_healthy
     labels:
       - "traefik.enable=true"
+      - "traefik.docker.network=${TRAEFIK_NETWORK}"
       - "traefik.http.routers.packup-app.rule=Host(`${FULL_DOMAIN:-localhost}`)"
       - "traefik.http.routers.packup-app.entrypoints=websecure"
       - "traefik.http.routers.packup-app.tls.certresolver=${TRAEFIK_CERT_RESOLVER:-myresolver}"
