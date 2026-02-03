@@ -1,9 +1,7 @@
-
 # use this compose with existing traefik setup
 # set traefik network name [TRAEFIK_NETWORK] in .env file
 
 name: ${COMPOSE_NAME}
-
 services:
   postgres-db:
     image: postgres:15
@@ -15,11 +13,12 @@ services:
     volumes:
       - packup-db-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      test:
+        - CMD-SHELL
+        - pg_isready -U ${DB_USER} -d ${DB_NAME}
       interval: 10s
       timeout: 5s
       retries: 5
-
   packup-app:
     image: ${APP_IMAGE}:${APP_IMAGE_TAG}
     restart: always
@@ -43,23 +42,20 @@ services:
       postgres-db:
         condition: service_healthy
     labels:
-      - "traefik.enable=true"
-      - "traefik.docker.network=${TRAEFIK_NETWORK}"
-      - "traefik.http.routers.packup-app.rule=Host(`${FULL_DOMAIN:-localhost}`)"
-      - "traefik.http.routers.packup-app.entrypoints=websecure"
-      - "traefik.http.routers.packup-app.tls.certresolver=${TRAEFIK_CERT_RESOLVER:-myresolver}"
-      - "traefik.http.services.packup-app.loadbalancer.server.port=${PORT}"
-
+      - traefik.enable=true
+      - traefik.docker.network=${TRAEFIK_NETWORK}
+      - traefik.http.routers.packup-app.rule=Host(`${FULL_DOMAIN:-localhost}`)
+      - traefik.http.routers.packup-app.entrypoints=websecure
+      - traefik.http.routers.packup-app.tls.certresolver=${TRAEFIK_CERT_RESOLVER:-myresolver}
+      - traefik.http.services.packup-app.loadbalancer.server.port=${PORT}
     networks:
       - default
       - traefik-proxy
-
 networks:
   default:
     name: ${COMPOSE_NAME}
   traefik-proxy:
     name: ${TRAEFIK_NETWORK}
     external: true
-
 volumes:
-  packup-db-data:
+  packup-db-data: null
