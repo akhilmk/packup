@@ -23,13 +23,16 @@
       // Load runtime configuration from backend (now that we are authenticated)
       loadRuntimeConfig();
       
-      // Redirect based on role if on login page and authenticated
+      // Redirect based on role
       if ($page.url.pathname === '/' && user) {
         if (user.role === 'admin') {
           goto('/admin');
         } else {
           goto('/todos');
         }
+      } else if (isAdminRoute && user.role !== 'admin') {
+        // Prevent non-admins from accessing admin routes
+        goto('/todos');
       }
     } catch (e) {
       console.log("Not authenticated");
@@ -39,6 +42,13 @@
       }
     } finally {
       loading = false;
+    }
+  });
+
+  // Handle navigation for already logged-in users
+  $effect(() => {
+    if (user && isAdminRoute && user.role !== 'admin') {
+      goto('/todos');
     }
   });
 
