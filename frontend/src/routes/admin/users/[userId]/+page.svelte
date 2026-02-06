@@ -256,12 +256,12 @@
                         onkeydown={(e) => handleKeydown(e, todo)}
                         onclick={(e) => e.stopPropagation()} 
                         class="flex-1 px-2 py-1 text-sm border border-indigo-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                        autofocus
                       />
                       <button 
                         onclick={(e) => { e.stopPropagation(); saveEdit(todo); }}
                         class="p-1 text-emerald-600 hover:bg-emerald-50 rounded"
                         track="Save"
+                        aria-label="Save"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
                       </button>
@@ -269,6 +269,7 @@
                         onclick={(e) => { e.stopPropagation(); cancelEditing(); }}
                         class="p-1 text-slate-400 hover:bg-slate-100 rounded"
                         track="Cancel"
+                        aria-label="Cancel"
                       >
                          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                       </button>
