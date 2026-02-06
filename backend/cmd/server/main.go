@@ -57,11 +57,24 @@ func main() {
 	// Swagger documentation protected by admin-only auth
 	mux.HandleFunc("GET /swagger/", authHandler.AdminMiddlewareWithRedirect(httpSwagger.WrapHandler))
 
-	// Serve static frontend files
-	staticDir := "frontend/dist"
+	// Serve static frontend files with SPA fallback
+	staticDir := "frontend/build"
 	if _, err := os.Stat(staticDir); err == nil {
-		fs := http.FileServer(http.Dir(staticDir))
-		mux.Handle("/", fs)
+		// SPA fallback handler
+		spaHandler := func(w http.ResponseWriter, r *http.Request) {
+			path := staticDir + r.URL.Path
+			
+			// Check if file exists
+			if _, err := os.Stat(path); err == nil {
+				http.ServeFile(w, r, path)
+				return
+			}
+			
+			// Serve index.html for SPA routing
+			http.ServeFile(w, r, staticDir+"/index.html")
+		}
+		
+		mux.HandleFunc("/", spaHandler)
 		log.Printf("Serving static files from: %s", staticDir)
 	} else {
 		log.Printf("Warning: %s not found. Frontend will not be served.", staticDir)

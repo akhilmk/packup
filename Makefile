@@ -64,8 +64,8 @@ frontend-build:
 build-frontend: frontend-build
 	@echo "Preparing frontend artifacts..."
 	mkdir -p bin/frontend
-	rm -rf bin/frontend/dist
-	cp -r frontend/dist bin/frontend/
+	rm -rf bin/frontend/build
+	cp -r frontend/build bin/frontend/
 
 build-backend:
 	@echo "Building Go backend..."
@@ -93,7 +93,7 @@ run:
 		--name $(CONTAINER_NAME) \
 		-p 8080:8080 \
 		--network packup-dev-build \
-		-v $(PWD)/frontend/dist:/app/frontend/dist:ro \
+		-v $(PWD)/frontend/build:/app/frontend/build:ro \
 		-v $(PWD)/backend/migrations:/app/migrations:ro \
 		-e DB_USER=$(DB_USER) \
 		-e DB_PASS=$(DB_PASS) \
@@ -133,7 +133,7 @@ swagger:
 clean:
 	@echo "Cleaning build artifacts..."
 	rm -rf bin/
-	rm -rf frontend/dist
+	rm -rf frontend/build
 
 docker-clean:
 	@echo "Stopping and removing Docker images/containers..."

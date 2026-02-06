@@ -9,7 +9,7 @@ WORKDIR /app
 COPY bin/packup /app/packup
 
 # Copy the frontend static files
-COPY bin/frontend/dist /app/frontend/dist
+COPY bin/frontend/build /app/frontend/build
 
 # Copy the migrations folder
 COPY bin/migrations /app/migrations
